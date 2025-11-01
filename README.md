@@ -219,7 +219,7 @@ pip install pyinstaller
 
 2. **Build executable**
    ```bash
-   pyinstaller --onefile --windowed --icon=icon.ico run.pyw
+   pyinstaller --onefile --windowed run.pyw
    ```
 
 3. **Find executable**
@@ -230,7 +230,7 @@ pip install pyinstaller
 
 For development builds with console:
 ```bash
-pyinstaller --onefile --console --icon=icon.ico run.pyw
+pyinstaller --onefile --console run.pyw
 ```
 
 ---
@@ -421,7 +421,7 @@ ai-quiz-assistant/
 ├── run.pyw              # Application entry point
 ├── QuizAssistant.spec    # PyInstaller spec
 ├── README.md            # This file
-└── icon.ico             # Application icon
+└── requirements.txt     # Python dependencies
 ```
 
 ---
