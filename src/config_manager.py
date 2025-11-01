@@ -1,0 +1,217 @@
+"""
+Config Manager Module
+Manage configuration from config.json file (from setup.py) or .env (fallback)
+"""
+
+import os
+import json
+from typing import Any, Optional
+from dotenv import load_dotenv
+
+
+class ConfigManager:
+    """Manage application configuration from config.json or .env file"""
+
+    def __init__(self, config_file: str = "config.json", env_file: str = ".env"):
+        """
+        Initialize ConfigManager
+
+        Args:
+            config_file: Path to config.json file (preferred)
+            env_file: Path to .env file (fallback)
+        """
+        self.config_file = config_file
+        self.env_file = env_file
+        self.config = {}
+        self.load_config()
+
+    def load_config(self) -> None:
+        """
+        Read configuration from config.json file (preferred) or .env (fallback)
+        If no files exist, create .env.example template
+        """
+        # Prefer reading from config.json (from setup.py)
+        if os.path.exists(self.config_file):
+            try:
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    json_config = json.load(f)
+
+                # Map from config.json to old format for compatibility
+                self.config = {
+                    'POPUP_POSITION': 'cursor',  # Default
+                    'LOG_LEVEL': 'INFO',  # Default
+                    'AI_PROVIDER': json_config.get('ai_provider', 'gemini'),
+                    'AWS_REGION': json_config.get('aws_region', 'us-east-1'),
+                    'AWS_BEDROCK_MODEL': 'anthropic.claude-3-5-sonnet-20240620-v1:0',  # Default
+                    'AWS_ACCESS_KEY_ID': json_config.get('aws_access_key_id', ''),
+                    'AWS_SECRET_ACCESS_KEY': json_config.get('aws_secret_access_key', '')
+                }
+
+                print("✅ Configuration loaded from config.json")
+                self._validate_api_key()
+                return
+
+            except Exception as e:
+                print(f"⚠️  Error reading config.json: {e}, fallback to .env")
+
+        # Fallback to .env if no config.json
+        # Create .env.example if not exists
+        if not os.path.exists(".env.example"):
+            self.create_default_config()
+
+        # Load .env file if exists
+        if os.path.exists(self.env_file):
+            load_dotenv(self.env_file)
+
+            # Save values to dictionary for easy access
+            self.config = {
+                'POPUP_POSITION': os.getenv('POPUP_POSITION', 'cursor'),
+                'LOG_LEVEL': os.getenv('LOG_LEVEL', 'INFO'),
+                # AWS Bedrock config
+                'AI_PROVIDER': os.getenv('AI_PROVIDER', 'gemini'),
+                'AWS_REGION': os.getenv('AWS_REGION', 'us-east-1'),
+                'AWS_BEDROCK_MODEL': os.getenv('AWS_BEDROCK_MODEL', ''),
+                'AWS_ACCESS_KEY_ID': os.getenv('AWS_ACCESS_KEY_ID', ''),
+                'AWS_SECRET_ACCESS_KEY': os.getenv('AWS_SECRET_ACCESS_KEY', '')
+            }
+
+            # Validate API key based on provider
+            self._validate_api_key()
+        else:
+            # If no .env file, use default values
+            self.config = {
+                'POPUP_POSITION': 'cursor',
+                'LOG_LEVEL': 'INFO',
+                'AI_PROVIDER': 'gemini',
+                'AWS_REGION': 'us-east-1',
+                'AWS_BEDROCK_MODEL': '',
+                'AWS_ACCESS_KEY_ID': '',
+                'AWS_SECRET_ACCESS_KEY': ''
+            }
+    
+    def get(self, key: str, default: Any = None) -> Any:
+        """
+        Lấy giá trị cấu hình
+        
+        Args:
+            key: Tên key cấu hình
+            default: Giá trị mặc định nếu key không tồn tại
+            
+        Returns:
+            Giá trị cấu hình hoặc default
+        """
+        return self.config.get(key, default)
+    
+    def create_default_config(self) -> None:
+        """
+        Tạo file .env.example với template cấu hình mẫu
+        """
+        default_config = """# AI Provider Configuration
+# Options: "gemini" or "bedrock"
+AI_PROVIDER=gemini
+
+# Gemini API Configuration (if using Gemini)
+# Set GEMINI_API_KEY environment variable or run: python setup.py
+# Do NOT put your real API key in this file!
+
+# AWS Bedrock Configuration (if using Bedrock)
+# Run: python auto_setup_aws.py to configure
+AWS_REGION=us-east-1
+AWS_BEDROCK_MODEL=anthropic.claude-3-5-sonnet-20240620-v1:0
+
+# Popup Configuration
+# Options: "cursor" or "fixed:x,y" (e.g., "fixed:100,100")
+POPUP_POSITION=cursor
+
+# Logging Configuration
+# Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+LOG_LEVEL=INFO
+"""
+        
+        with open(".env.example", "w", encoding="utf-8") as f:
+            f.write(default_config)
+    
+    def _validate_api_key(self) -> None:
+        """
+        Validate API key/credentials based on provider
+
+        Raises:
+            ValueError: If API key/config is invalid
+        """
+        provider = self.config.get('AI_PROVIDER', 'gemini').lower()
+
+        if provider == 'bedrock':
+            # Validate AWS config
+            region = self.config.get('AWS_REGION', '')
+            access_key = self.config.get('AWS_ACCESS_KEY_ID', '')
+            secret_key = self.config.get('AWS_SECRET_ACCESS_KEY', '')
+
+            if not region or region.strip() == '':
+                raise ValueError("AWS_REGION is invalid")
+
+            if not access_key or access_key.strip() == '':
+                raise ValueError("AWS_ACCESS_KEY_ID is invalid")
+
+            if not secret_key or secret_key.strip() == '':
+                raise ValueError("AWS_SECRET_ACCESS_KEY is invalid")
+
+        else:  # gemini
+            # Validate Gemini API key - check environment variable or prompt user
+            api_key = self.get_gemini_api_key()
+            if not api_key or api_key.strip() == '' or api_key == 'YOUR_GEMINI_API_KEY_HERE':
+                raise ValueError(
+                    "GEMINI_API_KEY is invalid. "
+                    "Set GEMINI_API_KEY environment variable or run: python setup.py to configure"
+                )
+    
+    def get_gemini_api_key(self) -> str:
+        """
+        Get Gemini API key from environment variable or prompt user
+        
+        Returns:
+            Gemini API key
+        """
+        # First check environment variable
+        api_key = os.getenv('GEMINI_API_KEY', '')
+        if api_key and api_key.strip() != '' and api_key != 'YOUR_GEMINI_API_KEY_HERE':
+            return api_key
+        
+        # If not found, prompt user (only in interactive mode)
+        try:
+            import getpass
+            print("\n🔑 Gemini API Key not found in environment variables.")
+            print("Please enter your Gemini API key:")
+            api_key = getpass.getpass("Gemini API Key: ").strip()
+            if api_key:
+                # Set environment variable for current session
+                os.environ['GEMINI_API_KEY'] = api_key
+                return api_key
+        except ImportError:
+            # getpass not available, fallback to input
+            print("\n🔑 Gemini API Key not found in environment variables.")
+            api_key = input("Please enter your Gemini API Key: ").strip()
+            if api_key:
+                os.environ['GEMINI_API_KEY'] = api_key
+                return api_key
+        
+        return ''
+    
+    def is_valid(self) -> bool:
+        """
+        Check if configuration is valid
+        
+        Returns:
+            True if configuration is valid, False otherwise
+        """
+        try:
+            self._validate_api_key()
+            return True
+        except ValueError:
+            return False
+    
+    def reload(self) -> None:
+        """
+        Reload configuration from .env file
+        Useful when .env file changes without restarting the application
+        """
+        self.load_config()

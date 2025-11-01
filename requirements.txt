@@ -1,0 +1,11 @@
+pynput==1.7.6
+Pillow==10.1.0
+google-generativeai==0.3.1
+pystray==0.19.5
+python-dotenv==1.0.0
+screeninfo==0.8.1
+pyinstaller==6.3.0
+
+# AWS Bedrock (optional - chỉ cần nếu dùng AWS)
+boto3==1.34.0
+botocore==1.34.0
