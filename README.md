@@ -10,7 +10,7 @@
 
 *Capture screenshots, analyze questions, get instant AI-powered answers*
 
-[📥 Download Latest Release](#-installation) • [📖 Documentation](#-usage) • [🐛 Report Issues](https://github.com/yourusername/ai-quiz-assistant/issues)
+[📥 Download Latest Release](#-installation) • [📖 Documentation](#-usage) • [🐛 Report Issues](https://github.com/nvtruongops/ai-quiz-assistant/issues)
 
 </div>
 
@@ -69,7 +69,7 @@
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/ai-quiz-assistant.git
+   git clone https://github.com/nvtruongops/ai-quiz-assistant.git
    cd ai-quiz-assistant
    ```
 
@@ -93,7 +93,7 @@
 
 For users who prefer not to install Python:
 
-1. Go to [Releases](https://github.com/yourusername/ai-quiz-assistant/releases)
+1. Go to [Releases](https://github.com/nvtruongops/ai-quiz-assistant/releases)
 2. Download the latest `QuizAssistant.exe`
 3. Copy `.env.example` to `.env` and configure your API keys
 4. Run `QuizAssistant.exe`
@@ -316,7 +316,7 @@ Solution:
 
 1. **Check logs**: `logs/app.log` and `logs/answers.txt`
 2. **Run diagnostics**: `python test_security.py`
-3. **Create issue**: [GitHub Issues](https://github.com/yourusername/ai-quiz-assistant/issues)
+3. **Create issue**: [GitHub Issues](https://github.com/nvtruongops/ai-quiz-assistant/issues)
 
 ---
 
@@ -326,7 +326,7 @@ Solution:
 
 1. **Clone repository**
    ```bash
-   git clone https://github.com/yourusername/ai-quiz-assistant.git
+   git clone https://github.com/nvtruongops/ai-quiz-assistant.git
    cd ai-quiz-assistant
    ```
 
@@ -498,9 +498,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- 📧 **Email**: your.email@example.com
-- 🐛 **Issues**: [GitHub Issues](https://github.com/yourusername/ai-quiz-assistant/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/yourusername/ai-quiz-assistant/discussions)
+- 📧 **Email**: nvtruongops@gmail.com
+- 🐛 **Issues**: [GitHub Issues](https://github.com/nvtruongops/ai-quiz-assistant/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/nvtruongops/ai-quiz-assistant/discussions)
 
 ---
 
