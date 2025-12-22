@@ -3,6 +3,8 @@
 
 # AI Configuration (contains API keys and credentials)
 config.json
+config_backup.json
+test_req.json
 
 # Logs
 logs/

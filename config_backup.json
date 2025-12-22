@@ -1,8 +1,0 @@
-{
-  "ai_provider": "gemini",
-  "gemini_api_key_hash": "ba43e613fc080bc33833f3fb992f0192bfb05cb15f7328f6896e7d58995fb5d7",
-  "gemini_api_key": "YOUR_GEMINI_API_KEY_HERE",
-  "aws_region": "",
-  "aws_access_key_id": "",
-  "aws_secret_access_key": ""
-}
