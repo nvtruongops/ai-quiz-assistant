@@ -35,17 +35,6 @@ except ImportError:
     from src.system_tray import SystemTray
     from src.models import QuizResult
 
-# Import Bedrock client (optional)
-try:
-    from bedrock_client import BedrockAPIClient
-    BEDROCK_AVAILABLE = True
-except ImportError:
-    try:
-        from src.bedrock_client import BedrockAPIClient
-        BEDROCK_AVAILABLE = True
-    except ImportError:
-        BEDROCK_AVAILABLE = False
-
 
 class QuizAssistantApp:
     """Main application class for AI Quiz Assistant"""
@@ -81,10 +70,7 @@ class QuizAssistantApp:
         self.request_manager = RequestManager()
         self.screenshot_manager = ScreenshotManager(logger=self.logger)
         
-        # Initialize AI client based on provider
-        self.ai_client = None
-        self.ai_provider = self.config_manager.get('AI_PROVIDER', 'gemini').lower()
-        
+        # Initialize Gemini AI client
         self._initialize_ai_client()
         
         # Initialize UI components
@@ -99,7 +85,7 @@ class QuizAssistantApp:
             on_clear_logs=self.on_clear_logs_hotkey,
             on_show_answers=self.on_show_answers_hotkey,
             on_reset_answers=self.on_reset_answers_hotkey,
-            on_switch_provider=self.on_switch_provider_hotkey
+            on_setup=self.on_setup_hotkey
         )
         
         # Initialize system tray
@@ -135,27 +121,17 @@ class QuizAssistantApp:
     
     def _initialize_ai_client(self):
         """
-        Initialize AI client based on current provider setting
+        Initialize Gemini AI client
         """
         try:
-            if self.ai_provider == 'bedrock':
-                # Use AWS Bedrock
-                if not BEDROCK_AVAILABLE:
-                    raise ImportError("boto3 not installed. Run: pip install boto3 botocore")
-                
-                aws_region = self.config_manager.get('AWS_REGION', 'us-east-1')
-                self.ai_client = BedrockAPIClient(region=aws_region, logger=self.logger)
-                self.logger.info(f"AWS Bedrock client initialized (region: {aws_region})")
-            else:
-                # Use Gemini (default)
-                api_key = self.config_manager.get_gemini_api_key()
-                if not api_key:
-                    raise ValueError("GEMINI_API_KEY not found. Set GEMINI_API_KEY environment variable or run: python setup.py")
-                self.ai_client = GeminiAPIClient(api_key=api_key, logger=self.logger)
-                self.logger.info("Gemini API client initialized")
+            api_key = self.config_manager.get_gemini_api_key()
+            if not api_key:
+                raise ValueError("GEMINI_API_KEY not found. Set GEMINI_API_KEY environment variable or run: python setup.py")
+            self.ai_client = GeminiAPIClient(api_key=api_key, logger=self.logger)
+            self.logger.info("Gemini API client initialized")
                 
         except Exception as e:
-            self.logger.error(f"Failed to initialize AI client ({self.ai_provider}): {str(e)}", exc_info=True)
+            self.logger.error(f"Failed to initialize AI client: {str(e)}", exc_info=True)
             raise
     
     def start(self):
@@ -185,7 +161,7 @@ class QuizAssistantApp:
             self.logger.info("  Alt+X : Show/Hide detailed results")
             self.logger.info("  Alt+C or MIDDLE + Scroll DOWN : Show all saved answers")
             self.logger.info("  Alt+R : Reset answer history")
-            self.logger.info("  Alt+S : Setup Menu (configure AI provider)")
+            self.logger.info("  Alt+S : Setup Menu (configure Gemini API)")
             self.logger.info("  Delete : Clear all log files and answers")
             self.logger.info("  ` (backtick) : Exit program")
             
@@ -593,7 +569,7 @@ class QuizAssistantApp:
             self.logger.error(f"Error resetting answers: {str(e)}", exc_info=True)
             self.popup_manager.show(f"❌ Error: {str(e)}")
     
-    def on_switch_provider_hotkey(self):
+    def on_setup_hotkey(self):
         """
         Handle Alt+S hotkey - Show Setup Menu
         """
@@ -609,7 +585,7 @@ class QuizAssistantApp:
     
     def show_setup_dialog(self):
         """
-        Show setup dialog with configuration options
+        Show setup dialog for Gemini API configuration
         """
         try:
             import tkinter as tk
@@ -618,7 +594,7 @@ class QuizAssistantApp:
             # Create dialog window
             dialog = tk.Toplevel()
             dialog.title("AI Quiz Assistant - Setup")
-            dialog.geometry("400x300")
+            dialog.geometry("400x200")
             dialog.resizable(False, False)
             
             # Center the dialog
@@ -663,108 +639,9 @@ class QuizAssistantApp:
                         messagebox.showinfo("Success", "✅ Google Gemini configured!")
                         dialog.destroy()
                         
-                        # Re-initialize AI client if currently using Gemini
-                        if self.ai_provider == 'gemini':
-                            self._initialize_ai_client()
-                            
-                except Exception as e:
-                    messagebox.showerror("Error", f"❌ Error: {str(e)}")
-            
-            def setup_bedrock():
-                try:
-                    # Setup AWS Access Key
-                    access_key = simpledialog.askstring("Setup AWS Bedrock", 
-                                                     "Enter AWS Access Key ID:",
-                                                     parent=dialog)
-                    if not access_key:
-                        return
-                    
-                    # Setup AWS Secret Key
-                    secret_key = simpledialog.askstring("Setup AWS Bedrock", 
-                                                     "Enter AWS Secret Access Key:",
-                                                     parent=dialog, show='*')
-                    if not secret_key:
-                        return
-                    
-                    # Setup AWS Region
-                    region = simpledialog.askstring("Setup AWS Bedrock", 
-                                                 "Enter AWS Region (default: us-east-1):",
-                                                 parent=dialog)
-                    if not region:
-                        region = 'us-east-1'
-                    
-                    # Read current config
-                    config_file = "config.json"
-                    config = {}
-                    if os.path.exists(config_file):
-                        with open(config_file, 'r', encoding='utf-8') as f:
-                            config = json.load(f)
-                    
-                    # Update config
-                    config['aws_access_key_id'] = access_key
-                    config['aws_secret_access_key'] = secret_key
-                    config['aws_region'] = region
-                    
-                    # Save config
-                    with open(config_file, 'w', encoding='utf-8') as f:
-                        json.dump(config, f, indent=2, ensure_ascii=False)
-                    
-                    messagebox.showinfo("Success", "✅ AWS Bedrock configured!")
-                    dialog.destroy()
-                    
-                    # Re-initialize AI client if currently using Bedrock
-                    if self.ai_provider == 'bedrock':
+                        # Re-initialize AI client
                         self._initialize_ai_client()
-                        
-                except Exception as e:
-                    messagebox.showerror("Error", f"❌ Error: {str(e)}")
-            
-            def switch_provider():
-                try:
-                    # Read current config
-                    config_file = "config.json"
-                    if not os.path.exists(config_file):
-                        messagebox.showerror("Error", "❌ No configuration found")
-                        return
-                    
-                    with open(config_file, 'r', encoding='utf-8') as f:
-                        config = json.load(f)
-                    
-                    current_provider = config.get('ai_provider', 'gemini')
-                    
-                    # Check if both providers have been setup
-                    has_gemini = bool(config.get('gemini_api_key_hash')) or bool(os.getenv('GEMINI_API_KEY'))
-                    has_bedrock = bool(config.get('aws_access_key_id') and config.get('aws_secret_access_key'))
-                    
-                    # Switch provider
-                    if current_provider == 'gemini':
-                        if not has_bedrock:
-                            messagebox.showerror("Error", "❌ AWS Bedrock not configured")
-                            return
-                        config['ai_provider'] = 'bedrock'
-                        new_provider = 'AWS Bedrock'
-                        self.ai_provider = 'bedrock'
-                    elif current_provider == 'bedrock':
-                        if not has_gemini:
-                            messagebox.showerror("Error", "❌ Google Gemini not configured")
-                            return
-                        config['ai_provider'] = 'gemini'
-                        new_provider = 'Google Gemini'
-                        self.ai_provider = 'gemini'
-                    else:
-                        messagebox.showerror("Error", "❌ Unknown provider")
-                        return
-                    
-                    # Save config
-                    with open(config_file, 'w', encoding='utf-8') as f:
-                        json.dump(config, f, indent=2, ensure_ascii=False)
-                    
-                    # Re-initialize AI client with new provider
-                    self._initialize_ai_client()
-                    
-                    messagebox.showinfo("Success", f"🔄 Switched to {new_provider}")
-                    dialog.destroy()
-                    
+                            
                 except Exception as e:
                     messagebox.showerror("Error", f"❌ Error: {str(e)}")
             
@@ -780,7 +657,6 @@ class QuizAssistantApp:
                     
                     # Create config info to display
                     info = "📋 CURRENT CONFIGURATION:\n\n"
-                    info += f"AI Provider: {config.get('ai_provider', 'not set')}\n\n"
                     
                     # Check Gemini status
                     has_gemini_hash = bool(config.get('gemini_api_key_hash'))
@@ -790,11 +666,6 @@ class QuizAssistantApp:
                     else:
                         info += "❌ Google Gemini: Not configured\n"
                     
-                    if config.get('aws_access_key_id'):
-                        info += f"✅ AWS Bedrock: Configured (Region: {config.get('aws_region', 'N/A')})\n"
-                    else:
-                        info += "❌ AWS Bedrock: Not configured\n"
-                    
                     messagebox.showinfo("Current configuration", info)
                     
                 except Exception as e:
@@ -803,13 +674,9 @@ class QuizAssistantApp:
             # Buttons
             tk.Button(button_frame, text="1. Setup Google Gemini", 
                      command=setup_gemini, width=25).pack(pady=2)
-            tk.Button(button_frame, text="2. Setup AWS Bedrock", 
-                     command=setup_bedrock, width=25).pack(pady=2)
-            tk.Button(button_frame, text="3. View current configuration", 
+            tk.Button(button_frame, text="2. View current configuration", 
                      command=show_config, width=25).pack(pady=2)
-            tk.Button(button_frame, text="4. Switch AI Provider", 
-                     command=switch_provider, width=25).pack(pady=2)
-            tk.Button(button_frame, text="5. Close", 
+            tk.Button(button_frame, text="3. Close", 
                      command=dialog.destroy, width=25).pack(pady=5)
             
             # Wait for dialog to close

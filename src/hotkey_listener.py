@@ -19,7 +19,7 @@ class HotkeyListener:
                  on_clear_logs: Callable[[], None] = None,
                  on_show_answers: Callable[[], None] = None,
                  on_reset_answers: Callable[[], None] = None,
-                 on_switch_provider: Callable[[], None] = None):
+                 on_setup: Callable[[], None] = None):
         """
         Initialize HotkeyListener
         
@@ -31,7 +31,7 @@ class HotkeyListener:
             on_clear_logs: Callback when Delete pressed - clear logs and answers
             on_show_answers: Callback when Alt+C pressed - toggle answers popup
             on_reset_answers: Callback when Alt+R pressed - reset answer history
-            on_switch_provider: Callback when Alt+S pressed - switch AI provider
+            on_setup: Callback when Alt+S pressed - show setup dialog
         """
         self.on_capture_key = on_capture_key
         self.on_check_key = on_check_key
@@ -40,7 +40,7 @@ class HotkeyListener:
         self.on_clear_logs = on_clear_logs
         self.on_show_answers = on_show_answers
         self.on_reset_answers = on_reset_answers
-        self.on_switch_provider = on_switch_provider
+        self.on_setup = on_setup
         
         self.keyboard_listener: Optional[keyboard.Listener] = None
         self.mouse_listener: Optional[mouse.Listener] = None
@@ -206,9 +206,9 @@ class HotkeyListener:
                         if self.on_reset_answers:
                             self.on_reset_answers()
                     elif key_char == 's':
-                        self.logger.info("Switch provider hotkey (Alt+S) pressed")
-                        if self.on_switch_provider:
-                            self.on_switch_provider()
+                        self.logger.info("Setup hotkey (Alt+S) pressed")
+                        if self.on_setup:
+                            self.on_setup()
         
         except Exception as e:
             self.logger.error(f"Error handling key press: {e}", exc_info=True)

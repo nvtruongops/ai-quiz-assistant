@@ -40,11 +40,6 @@ class ConfigManager:
                 self.config = {
                     'POPUP_POSITION': 'cursor',  # Default
                     'LOG_LEVEL': 'INFO',  # Default
-                    'AI_PROVIDER': json_config.get('ai_provider', 'gemini'),
-                    'AWS_REGION': json_config.get('aws_region', 'us-east-1'),
-                    'AWS_BEDROCK_MODEL': 'anthropic.claude-3-5-sonnet-20240620-v1:0',  # Default
-                    'AWS_ACCESS_KEY_ID': json_config.get('aws_access_key_id', ''),
-                    'AWS_SECRET_ACCESS_KEY': json_config.get('aws_secret_access_key', '')
                 }
 
                 print("✅ Configuration loaded from config.json")
@@ -67,26 +62,15 @@ class ConfigManager:
             self.config = {
                 'POPUP_POSITION': os.getenv('POPUP_POSITION', 'cursor'),
                 'LOG_LEVEL': os.getenv('LOG_LEVEL', 'INFO'),
-                # AWS Bedrock config
-                'AI_PROVIDER': os.getenv('AI_PROVIDER', 'gemini'),
-                'AWS_REGION': os.getenv('AWS_REGION', 'us-east-1'),
-                'AWS_BEDROCK_MODEL': os.getenv('AWS_BEDROCK_MODEL', ''),
-                'AWS_ACCESS_KEY_ID': os.getenv('AWS_ACCESS_KEY_ID', ''),
-                'AWS_SECRET_ACCESS_KEY': os.getenv('AWS_SECRET_ACCESS_KEY', '')
             }
 
-            # Validate API key based on provider
+            # Validate API key
             self._validate_api_key()
         else:
             # If no .env file, use default values
             self.config = {
                 'POPUP_POSITION': 'cursor',
                 'LOG_LEVEL': 'INFO',
-                'AI_PROVIDER': 'gemini',
-                'AWS_REGION': 'us-east-1',
-                'AWS_BEDROCK_MODEL': '',
-                'AWS_ACCESS_KEY_ID': '',
-                'AWS_SECRET_ACCESS_KEY': ''
             }
     
     def get(self, key: str, default: Any = None) -> Any:
@@ -106,18 +90,9 @@ class ConfigManager:
         """
         Tạo file .env.example với template cấu hình mẫu
         """
-        default_config = """# AI Provider Configuration
-# Options: "gemini" or "bedrock"
-AI_PROVIDER=gemini
-
-# Gemini API Configuration (if using Gemini)
+        default_config = """# Gemini API Configuration
 # Set GEMINI_API_KEY environment variable or run: python setup.py
 # Do NOT put your real API key in this file!
-
-# AWS Bedrock Configuration (if using Bedrock)
-# Run: python auto_setup_aws.py to configure
-AWS_REGION=us-east-1
-AWS_BEDROCK_MODEL=anthropic.claude-3-5-sonnet-20240620-v1:0
 
 # Popup Configuration
 # Options: "cursor" or "fixed:x,y" (e.g., "fixed:100,100")
@@ -133,36 +108,17 @@ LOG_LEVEL=INFO
     
     def _validate_api_key(self) -> None:
         """
-        Validate API key/credentials based on provider
+        Validate Gemini API key
 
         Raises:
-            ValueError: If API key/config is invalid
+            ValueError: If API key is invalid
         """
-        provider = self.config.get('AI_PROVIDER', 'gemini').lower()
-
-        if provider == 'bedrock':
-            # Validate AWS config
-            region = self.config.get('AWS_REGION', '')
-            access_key = self.config.get('AWS_ACCESS_KEY_ID', '')
-            secret_key = self.config.get('AWS_SECRET_ACCESS_KEY', '')
-
-            if not region or region.strip() == '':
-                raise ValueError("AWS_REGION is invalid")
-
-            if not access_key or access_key.strip() == '':
-                raise ValueError("AWS_ACCESS_KEY_ID is invalid")
-
-            if not secret_key or secret_key.strip() == '':
-                raise ValueError("AWS_SECRET_ACCESS_KEY is invalid")
-
-        else:  # gemini
-            # Validate Gemini API key - check environment variable or prompt user
-            api_key = self.get_gemini_api_key()
-            if not api_key or api_key.strip() == '' or api_key == 'YOUR_GEMINI_API_KEY_HERE':
-                raise ValueError(
-                    "GEMINI_API_KEY is invalid. "
-                    "Set GEMINI_API_KEY environment variable or run: python setup.py to configure"
-                )
+        api_key = self.get_gemini_api_key()
+        if not api_key or api_key.strip() == '' or api_key == 'YOUR_GEMINI_API_KEY_HERE':
+            raise ValueError(
+                "GEMINI_API_KEY is invalid. "
+                "Set GEMINI_API_KEY environment variable or run: python setup.py to configure"
+            )
     
     def get_gemini_api_key(self) -> str:
         """
