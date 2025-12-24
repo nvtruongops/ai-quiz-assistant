@@ -192,9 +192,9 @@ Return only JSON, no other text."""
             ValueError: If response not valid JSON or missing required fields
         """
         try:
-            # Log raw response for debugging
+            # Log response length only (avoid logging sensitive content)
             if self.logger:
-                self.logger.info(f"Raw response (first 500 chars): {response_text[:500]}")
+                self.logger.info(f"Received response with {len(response_text)} characters")
             
             # Remove markdown code block if present
             cleaned_text = response_text.strip()
@@ -205,9 +205,6 @@ Return only JSON, no other text."""
             if cleaned_text.endswith("```"):
                 cleaned_text = cleaned_text[:-3]  # Remove ```
             cleaned_text = cleaned_text.strip()
-            
-            if self.logger:
-                self.logger.info(f"Cleaned response (first 500 chars): {cleaned_text[:500]}")
             
             # Parse JSON
             data = json.loads(cleaned_text)

@@ -49,4 +49,17 @@ env/
 Thumbs.db
 
 # PyInstaller
-*.spec
+# Keep QuizAssistant.spec for build configuration
+*.manifest
+*.pem
+
+
+# Sensitive files
+*.pem
+*.key
+secrets/
+credentials/
+
+# Backup files
+*.bak
+*.backup
