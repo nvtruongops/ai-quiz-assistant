@@ -43,7 +43,6 @@ class ConfigManager:
                 }
 
                 print("✅ Configuration loaded from config.json")
-                self._validate_api_key()
                 return
 
             except Exception as e:
@@ -63,9 +62,6 @@ class ConfigManager:
                 'POPUP_POSITION': os.getenv('POPUP_POSITION', 'cursor'),
                 'LOG_LEVEL': os.getenv('LOG_LEVEL', 'INFO'),
             }
-
-            # Validate API key
-            self._validate_api_key()
         else:
             # If no .env file, use default values
             self.config = {
@@ -108,48 +104,25 @@ LOG_LEVEL=INFO
     
     def _validate_api_key(self) -> None:
         """
-        Validate Gemini API key
+        Validate Gemini API key (silent - no console prompt)
 
         Raises:
             ValueError: If API key is invalid
         """
-        api_key = self.get_gemini_api_key()
+        api_key = os.getenv('GEMINI_API_KEY', '')
         if not api_key or api_key.strip() == '' or api_key == 'YOUR_GEMINI_API_KEY_HERE':
-            raise ValueError(
-                "GEMINI_API_KEY is invalid. "
-                "Set GEMINI_API_KEY environment variable or run: python setup.py to configure"
-            )
+            raise ValueError("GEMINI_API_KEY is invalid or not configured")
     
     def get_gemini_api_key(self) -> str:
         """
-        Get Gemini API key from environment variable or prompt user
+        Get Gemini API key from environment variable
         
         Returns:
-            Gemini API key
+            Gemini API key or empty string if not found
         """
-        # First check environment variable
         api_key = os.getenv('GEMINI_API_KEY', '')
         if api_key and api_key.strip() != '' and api_key != 'YOUR_GEMINI_API_KEY_HERE':
             return api_key
-        
-        # If not found, prompt user (only in interactive mode)
-        try:
-            import getpass
-            print("\n🔑 Gemini API Key not found in environment variables.")
-            print("Please enter your Gemini API key:")
-            api_key = getpass.getpass("Gemini API Key: ").strip()
-            if api_key:
-                # Set environment variable for current session
-                os.environ['GEMINI_API_KEY'] = api_key
-                return api_key
-        except ImportError:
-            # getpass not available, fallback to input
-            print("\n🔑 Gemini API Key not found in environment variables.")
-            api_key = input("Please enter your Gemini API Key: ").strip()
-            if api_key:
-                os.environ['GEMINI_API_KEY'] = api_key
-                return api_key
-        
         return ''
     
     def is_valid(self) -> bool:

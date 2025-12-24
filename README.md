@@ -4,7 +4,7 @@ A Windows desktop application that captures screenshots and uses Google Gemini A
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.10 - 3.12 (Python 3.13+ not yet supported by google-generativeai)
 - Windows 10/11
 - Google Gemini API key
 

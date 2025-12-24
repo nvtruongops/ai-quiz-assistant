@@ -11,6 +11,15 @@ import logging
 class HotkeyListener:
     """Listen to global hotkeys and secondary mouse button, call corresponding callbacks"""
     
+    # Default hotkeys
+    DEFAULT_HOTKEYS = {
+        'capture': 'z',
+        'results': 'x',
+        'answers': 'c',
+        'reset': 'r',
+        'settings': 's',
+    }
+    
     def __init__(self, 
                  on_capture_key: Callable[[], None],
                  on_check_key: Callable[[], None],
@@ -19,7 +28,8 @@ class HotkeyListener:
                  on_clear_logs: Callable[[], None] = None,
                  on_show_answers: Callable[[], None] = None,
                  on_reset_answers: Callable[[], None] = None,
-                 on_setup: Callable[[], None] = None):
+                 on_setup: Callable[[], None] = None,
+                 settings_manager = None):
         """
         Initialize HotkeyListener
         
@@ -32,6 +42,7 @@ class HotkeyListener:
             on_show_answers: Callback when Alt+C pressed - toggle answers popup
             on_reset_answers: Callback when Alt+R pressed - reset answer history
             on_setup: Callback when Alt+S pressed - show setup dialog
+            settings_manager: SettingsManager instance for custom hotkeys
         """
         self.on_capture_key = on_capture_key
         self.on_check_key = on_check_key
@@ -41,6 +52,10 @@ class HotkeyListener:
         self.on_show_answers = on_show_answers
         self.on_reset_answers = on_reset_answers
         self.on_setup = on_setup
+        self.settings_manager = settings_manager
+        
+        # Load custom hotkeys from settings
+        self.hotkeys = self._load_hotkeys()
         
         self.keyboard_listener: Optional[keyboard.Listener] = None
         self.mouse_listener: Optional[mouse.Listener] = None
@@ -58,6 +73,22 @@ class HotkeyListener:
         # Debounce to avoid multiple triggers
         self._last_hotkey_time = {}
         self._hotkey_cooldown = 0.5  # 500ms cooldown
+    
+    def _load_hotkeys(self) -> dict:
+        """Load hotkeys from settings or use defaults"""
+        hotkeys = self.DEFAULT_HOTKEYS.copy()
+        if self.settings_manager:
+            hotkeys['capture'] = self.settings_manager.get('hotkey_capture', 'z')
+            hotkeys['results'] = self.settings_manager.get('hotkey_results', 'x')
+            hotkeys['answers'] = self.settings_manager.get('hotkey_answers', 'c')
+            hotkeys['reset'] = self.settings_manager.get('hotkey_reset', 'r')
+            hotkeys['settings'] = self.settings_manager.get('hotkey_settings', 's')
+        return hotkeys
+    
+    def reload_hotkeys(self):
+        """Reload hotkeys from settings (call after settings change)"""
+        self.hotkeys = self._load_hotkeys()
+        self.logger.info(f"Hotkeys reloaded: {self.hotkeys}")
     
     def start(self):
         """
@@ -169,7 +200,7 @@ class HotkeyListener:
                         self.on_clear_logs()
 
             
-            # Handle Alt + Z/X/C/R with debounce
+            # Handle Alt + custom hotkeys with debounce
             elif hasattr(key, 'char') and key.char:
                 # Handle ` (backtick) key for exit
                 if key.char == '`':
@@ -191,22 +222,23 @@ class HotkeyListener:
                     # Update last time
                     self._last_hotkey_time[key_char] = current_time
                     
-                    if key_char == 'z':
-                        self.logger.info("Capture hotkey (Alt+Z) pressed")
+                    # Check against custom hotkeys
+                    if key_char == self.hotkeys['capture']:
+                        self.logger.info(f"Capture hotkey (Alt+{key_char.upper()}) pressed")
                         self.on_capture_key()
-                    elif key_char == 'x':
-                        self.logger.info("Toggle result popup hotkey (Alt+X) pressed")
+                    elif key_char == self.hotkeys['results']:
+                        self.logger.info(f"Toggle result popup hotkey (Alt+{key_char.upper()}) pressed")
                         self.on_check_key()
-                    elif key_char == 'c':
-                        self.logger.info("Toggle answers popup hotkey (Alt+C) pressed")
+                    elif key_char == self.hotkeys['answers']:
+                        self.logger.info(f"Toggle answers popup hotkey (Alt+{key_char.upper()}) pressed")
                         if self.on_show_answers:
                             self.on_show_answers()
-                    elif key_char == 'r':
-                        self.logger.info("Reset answers hotkey (Alt+R) pressed")
+                    elif key_char == self.hotkeys['reset']:
+                        self.logger.info(f"Reset answers hotkey (Alt+{key_char.upper()}) pressed")
                         if self.on_reset_answers:
                             self.on_reset_answers()
-                    elif key_char == 's':
-                        self.logger.info("Setup hotkey (Alt+S) pressed")
+                    elif key_char == self.hotkeys['settings']:
+                        self.logger.info(f"Setup hotkey (Alt+{key_char.upper()}) pressed")
                         if self.on_setup:
                             self.on_setup()
         

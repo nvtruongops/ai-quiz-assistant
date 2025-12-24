@@ -1,12 +1,15 @@
 """
 Gemini API Client Module
 Communicate with Google Gemini API to analyze quiz questions
+Using new google-genai package
 """
 
 import json
 import time
+import base64
 from typing import Optional
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from models import QuizResult, QuizQuestion
 from logger import Logger
 
@@ -40,9 +43,10 @@ class GeminiAPIClient:
             raise ValueError("API key cannot be empty")
         
         self.api_key = api_key
-        self.model = None
+        self.client = None
         self.logger = logger
         self.mode = mode
+        self.model_name = "gemini-2.0-flash"
         self.initialize()
     
     def set_mode(self, mode: str) -> None:
@@ -54,14 +58,13 @@ class GeminiAPIClient:
     
     def initialize(self) -> None:
         """
-        Initialize Gemini model with API key
+        Initialize Gemini client with API key
         
         Raises:
-            Exception: If unable to initialize model
+            Exception: If unable to initialize client
         """
         try:
-            genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-2.5-flash')
+            self.client = genai.Client(api_key=self.api_key)
             
             if self.logger:
                 self.logger.info("Gemini API client initialized successfully")
@@ -150,7 +153,7 @@ IMPORTANT:
 - Keep answers concise but complete
 
 Return only JSON, no other text."""
-    
+
     def analyze_quiz(self, image_bytes: bytes, timeout: int = 30) -> QuizResult:
         """
         Send image to Gemini API and get question analysis
@@ -167,8 +170,8 @@ Return only JSON, no other text."""
             TimeoutError: If API not responding within timeout
             Exception: Other API errors
         """
-        if not self.model:
-            raise Exception("Gemini model not initialized")
+        if not self.client:
+            raise Exception("Gemini client not initialized")
         
         try:
             if self.logger:
@@ -179,18 +182,24 @@ Return only JSON, no other text."""
             # Create prompt
             prompt = self.build_prompt()
             
-            # Prepare image data
-            image_parts = [
-                {
-                    "mime_type": "image/png",
-                    "data": image_bytes
-                }
+            # Prepare image as base64
+            image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+            
+            # Create content with image and text
+            contents = [
+                types.Part.from_bytes(data=image_bytes, mime_type="image/png"),
+                types.Part.from_text(text=prompt)
             ]
             
-            # Send request to Gemini API with timeout
-            # Note: google.generativeai does not support timeout directly
-            # We check elapsed time after receiving response
-            response = self.model.generate_content([prompt, image_parts[0]])
+            # Send request to Gemini API
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    temperature=0.1,
+                    top_p=0.95,
+                )
+            )
             
             elapsed_time = time.time() - start_time
             
@@ -209,13 +218,11 @@ Return only JSON, no other text."""
             return result
             
         except NoQuestionsFoundError as e:
-            # No questions found - not an error, just no results
             if self.logger:
                 self.logger.info(f"No questions found: {str(e)}")
             raise
         
         except ValueError as e:
-            # JSON parsing or validation error
             if self.logger:
                 self.logger.error(f"Parse error: {str(e)}", exc_info=True)
             raise
@@ -244,18 +251,17 @@ Return only JSON, no other text."""
             ValueError: If response not valid JSON or missing required fields
         """
         try:
-            # Log response length only (avoid logging sensitive content)
             if self.logger:
                 self.logger.info(f"Received response with {len(response_text)} characters")
             
             # Remove markdown code block if present
             cleaned_text = response_text.strip()
             if cleaned_text.startswith("```json"):
-                cleaned_text = cleaned_text[7:]  # Remove ```json
+                cleaned_text = cleaned_text[7:]
             if cleaned_text.startswith("```"):
-                cleaned_text = cleaned_text[3:]  # Remove ```
+                cleaned_text = cleaned_text[3:]
             if cleaned_text.endswith("```"):
-                cleaned_text = cleaned_text[:-3]  # Remove ```
+                cleaned_text = cleaned_text[:-3]
             cleaned_text = cleaned_text.strip()
             
             # Parse JSON
@@ -271,7 +277,6 @@ Return only JSON, no other text."""
             # Parse questions
             questions = []
             for q_data in data["questions"]:
-                # Validate required fields
                 if "number" not in q_data or "question" not in q_data or "answer" not in q_data:
                     if self.logger:
                         self.logger.error(f"Question missing required fields: {q_data}")
@@ -287,7 +292,6 @@ Return only JSON, no other text."""
             if not questions:
                 raise NoQuestionsFoundError("No valid questions found in response")
             
-            # Create QuizResult
             result = QuizResult(
                 questions=questions,
                 timestamp=time.time()

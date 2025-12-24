@@ -91,7 +91,8 @@ class QuizAssistantApp:
             on_clear_logs=self.on_clear_logs_hotkey,
             on_show_answers=self.on_show_answers_hotkey,
             on_reset_answers=self.on_reset_answers_hotkey,
-            on_setup=self.on_setup_hotkey
+            on_setup=self.on_setup_hotkey,
+            settings_manager=self.settings_manager
         )
         
         # Initialize system tray
@@ -121,26 +122,61 @@ class QuizAssistantApp:
         self.logger.info("All components initialized successfully")
     
     def _check_api_key(self) -> bool:
-        """Check if API key is configured"""
+        """Check if API key is configured (from env or config file)"""
+        # First check environment variable
         api_key = os.getenv('GEMINI_API_KEY', '')
-        return bool(api_key and api_key.strip() and api_key != 'YOUR_GEMINI_API_KEY_HERE')
+        if api_key and api_key.strip() and api_key != 'YOUR_GEMINI_API_KEY_HERE':
+            return True
+        
+        # Try to load from config.json
+        api_key = self._load_api_key_from_config()
+        if api_key and api_key.strip():
+            # Set to environment for other modules to use
+            os.environ['GEMINI_API_KEY'] = api_key
+            self.logger.info("API key loaded from config.json")
+            return True
+        
+        return False
     
     def _save_api_key(self, api_key: str) -> None:
         """Save API key to config and environment"""
-        hashed_key = hashlib.sha256(api_key.encode()).hexdigest()
+        import base64
+        
+        # Encode API key (simple obfuscation, not secure encryption)
+        encoded_key = base64.b64encode(api_key.encode()).decode()
         
         config = {}
         if os.path.exists("config.json"):
             with open("config.json", 'r', encoding='utf-8') as f:
                 config = json.load(f)
         
-        config['gemini_api_key_hash'] = hashed_key
+        config['gemini_api_key'] = encoded_key
         
         with open("config.json", 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
         
         os.environ['GEMINI_API_KEY'] = api_key
         self.logger.info("API key saved successfully")
+    
+    def _load_api_key_from_config(self) -> str:
+        """Load API key from config.json if exists"""
+        import base64
+        
+        if not os.path.exists("config.json"):
+            return ''
+        
+        try:
+            with open("config.json", 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            
+            encoded_key = config.get('gemini_api_key', '')
+            if encoded_key:
+                api_key = base64.b64decode(encoded_key.encode()).decode()
+                return api_key
+        except Exception as e:
+            self.logger.error(f"Error loading API key from config: {e}")
+        
+        return ''
     
     def _initialize_ai_client(self):
         """Initialize Gemini AI client"""
@@ -608,11 +644,17 @@ class QuizAssistantApp:
                 if hasattr(self, 'ai_client') and self.ai_client:
                     self.ai_client.set_mode(new_mode)
             
+            def on_hotkey_change():
+                self.logger.info("Hotkeys changed, reloading...")
+                if hasattr(self, 'hotkey_listener') and self.hotkey_listener:
+                    self.hotkey_listener.reload_hotkeys()
+            
             show_settings_dialog(
                 self.settings_manager,
                 on_api_change=on_api_change,
                 on_settings_change=on_settings_change,
-                on_mode_change=on_mode_change
+                on_mode_change=on_mode_change,
+                on_hotkey_change=on_hotkey_change
             )
             
         except Exception as e:
