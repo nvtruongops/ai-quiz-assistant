@@ -17,7 +17,7 @@ try:
     from config_manager import ConfigManager
     from logger import Logger
     from screenshot_manager import ScreenshotManager
-    from gemini_client import GeminiAPIClient, NoQuestionsFoundError
+    from gemini_client import GeminiAPIClient, NoQuestionsFoundError, MODE_MULTIPLE_CHOICE, MODE_ESSAY
     from request_manager import RequestManager
     from popup_manager import PopupManager
     from hotkey_listener import HotkeyListener
@@ -29,7 +29,7 @@ except ImportError:
     from src.config_manager import ConfigManager
     from src.logger import Logger
     from src.screenshot_manager import ScreenshotManager
-    from src.gemini_client import GeminiAPIClient, NoQuestionsFoundError
+    from src.gemini_client import GeminiAPIClient, NoQuestionsFoundError, MODE_MULTIPLE_CHOICE, MODE_ESSAY
     from src.request_manager import RequestManager
     from src.popup_manager import PopupManager
     from src.hotkey_listener import HotkeyListener
@@ -148,8 +148,12 @@ class QuizAssistantApp:
             api_key = os.getenv('GEMINI_API_KEY', '')
             if not api_key:
                 raise ValueError("GEMINI_API_KEY not found")
-            self.ai_client = GeminiAPIClient(api_key=api_key, logger=self.logger)
-            self.logger.info("Gemini API client initialized")
+            
+            # Get mode from settings
+            mode = self.settings_manager.get('question_mode', 'multiple_choice')
+            
+            self.ai_client = GeminiAPIClient(api_key=api_key, logger=self.logger, mode=mode)
+            self.logger.info(f"Gemini API client initialized (mode: {mode})")
         except Exception as e:
             self.logger.error(f"Failed to initialize AI client: {str(e)}", exc_info=True)
             raise
@@ -599,10 +603,16 @@ class QuizAssistantApp:
                 self.logger.info("Settings changed, reloading...")
                 self.settings_manager.load_settings()
             
+            def on_mode_change(new_mode):
+                self.logger.info(f"Question mode changed to: {new_mode}")
+                if hasattr(self, 'ai_client') and self.ai_client:
+                    self.ai_client.set_mode(new_mode)
+            
             show_settings_dialog(
                 self.settings_manager,
                 on_api_change=on_api_change,
-                on_settings_change=on_settings_change
+                on_settings_change=on_settings_change,
+                on_mode_change=on_mode_change
             )
             
         except Exception as e:

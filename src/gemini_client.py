@@ -11,6 +11,11 @@ from models import QuizResult, QuizQuestion
 from logger import Logger
 
 
+# Question modes
+MODE_MULTIPLE_CHOICE = "multiple_choice"
+MODE_ESSAY = "essay"
+
+
 class NoQuestionsFoundError(Exception):
     """Exception raised when no questions are found in the response"""
     pass
@@ -19,36 +24,43 @@ class NoQuestionsFoundError(Exception):
 class GeminiAPIClient:
     """Client to communicate with Gemini API"""
     
-    def __init__(self, api_key: str, logger: Optional[Logger] = None):
+    def __init__(self, api_key: str, logger: Optional[Logger] = None, mode: str = MODE_MULTIPLE_CHOICE):
         """
         Initialize Gemini API Client
         
         Args:
             api_key: Google Gemini API key
             logger: Logger instance (optional)
+            mode: Question mode - "multiple_choice" or "essay"
         
         Raises:
             ValueError: If API key is empty or invalid
         """
         if not api_key or api_key.strip() == '':
-            raise ValueError("API key không được để trống")
+            raise ValueError("API key cannot be empty")
         
         self.api_key = api_key
         self.model = None
         self.logger = logger
+        self.mode = mode
         self.initialize()
+    
+    def set_mode(self, mode: str) -> None:
+        """Set question answering mode"""
+        if mode in [MODE_MULTIPLE_CHOICE, MODE_ESSAY]:
+            self.mode = mode
+            if self.logger:
+                self.logger.info(f"Mode changed to: {mode}")
     
     def initialize(self) -> None:
         """
         Initialize Gemini model with API key
-        Use gemini-1.5-flash for fast processing
         
         Raises:
             Exception: If unable to initialize model
         """
         try:
             genai.configure(api_key=self.api_key)
-            # Sử dụng gemini-2.5-flash cho xử lý hình ảnh nhanh và hiệu quả
             self.model = genai.GenerativeModel('gemini-2.5-flash')
             
             if self.logger:
@@ -60,13 +72,19 @@ class GeminiAPIClient:
     
     def build_prompt(self) -> str:
         """
-        Create prompt template for Gemini API
-        Require identification and return JSON format
+        Create prompt template based on current mode
         
         Returns:
             Prompt string to send to Gemini API
         """
-        prompt = """You are an assistant that answers multiple-choice questions. Analyze this image and:
+        if self.mode == MODE_ESSAY:
+            return self._build_essay_prompt()
+        else:
+            return self._build_multiple_choice_prompt()
+    
+    def _build_multiple_choice_prompt(self) -> str:
+        """Build prompt for multiple choice questions"""
+        return """You are an assistant that answers multiple-choice questions. Analyze this image and:
 
 IMPORTANT: ONLY identify REAL multiple-choice questions:
 - Clear format: "Question 1:", "Question 2:", "Q1:", etc.
@@ -96,8 +114,42 @@ If questions found, return JSON:
 }
 
 Return only JSON, no other text."""
-        
-        return prompt
+    
+    def _build_essay_prompt(self) -> str:
+        """Build prompt for essay/open-ended questions"""
+        return """You are an intelligent assistant that answers questions. Analyze this image and:
+
+IDENTIFY any questions in the image:
+- Essay questions, open-ended questions
+- Short answer questions
+- Problem-solving questions
+- Any text that asks for an explanation or solution
+
+For each question found, provide a COMPLETE and DETAILED answer.
+
+If NO questions found, return:
+{
+  "questions": []
+}
+
+If questions found, return JSON:
+{
+  "questions": [
+    {
+      "number": "1",
+      "question": "Brief summary of the question",
+      "answer": "Complete detailed answer with explanation"
+    }
+  ]
+}
+
+IMPORTANT:
+- Provide thorough, educational answers
+- Include explanations and reasoning
+- If it's a math/science problem, show the solution steps
+- Keep answers concise but complete
+
+Return only JSON, no other text."""
     
     def analyze_quiz(self, image_bytes: bytes, timeout: int = 30) -> QuizResult:
         """

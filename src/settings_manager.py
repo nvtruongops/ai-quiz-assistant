@@ -19,6 +19,7 @@ class SettingsManager:
         'popup_width': 400,
         'popup_opacity': 1.0,
         'answers_per_line': 10,
+        'question_mode': 'multiple_choice',  # multiple_choice or essay
     }
     
     def __init__(self, config_file: str = "config.json"):
@@ -149,7 +150,8 @@ def show_api_key_dialog(parent: Optional[tk.Tk] = None) -> Optional[str]:
 
 def show_settings_dialog(settings_manager: SettingsManager, 
                          on_api_change: callable = None,
-                         on_settings_change: callable = None) -> None:
+                         on_settings_change: callable = None,
+                         on_mode_change: callable = None) -> None:
     """
     Show settings dialog with all configuration options
     """
@@ -158,15 +160,15 @@ def show_settings_dialog(settings_manager: SettingsManager,
     
     dialog = tk.Toplevel(root)
     dialog.title("AI Quiz Assistant - Settings")
-    dialog.geometry("400x350")
+    dialog.geometry("420x400")
     dialog.resizable(False, False)
     dialog.transient(root)
     dialog.grab_set()
     
     # Center dialog
     dialog.update_idletasks()
-    x = (dialog.winfo_screenwidth() - 400) // 2
-    y = (dialog.winfo_screenheight() - 350) // 2
+    x = (dialog.winfo_screenwidth() - 420) // 2
+    y = (dialog.winfo_screenheight() - 400) // 2
     dialog.geometry(f"+{x}+{y}")
     
     # Title
@@ -197,6 +199,33 @@ def show_settings_dialog(settings_manager: SettingsManager,
         api_entry.focus()
     
     tk.Button(api_frame, text="Change API Key", command=change_api).pack(anchor=tk.W)
+    
+    # === Question Mode Tab ===
+    mode_frame = ttk.Frame(notebook, padding=10)
+    notebook.add(mode_frame, text="Question Mode")
+    
+    tk.Label(mode_frame, text="Select how AI should answer questions:", 
+             font=("Segoe UI", 9, "bold")).pack(anchor=tk.W, pady=(0, 10))
+    
+    mode_var = tk.StringVar(value=settings_manager.get('question_mode', 'multiple_choice'))
+    
+    # Multiple Choice option
+    mc_frame = ttk.LabelFrame(mode_frame, text="Multiple Choice (A, B, C, D)", padding=10)
+    mc_frame.pack(fill=tk.X, pady=5)
+    
+    ttk.Radiobutton(mc_frame, text="For exams with options A, B, C, D", 
+                    variable=mode_var, value="multiple_choice").pack(anchor=tk.W)
+    tk.Label(mc_frame, text="Returns: 1A, 2B, 3C...", 
+             font=("Segoe UI", 8), fg="gray").pack(anchor=tk.W)
+    
+    # Essay option
+    essay_frame = ttk.LabelFrame(mode_frame, text="Essay / Open-ended", padding=10)
+    essay_frame.pack(fill=tk.X, pady=5)
+    
+    ttk.Radiobutton(essay_frame, text="For questions requiring detailed answers", 
+                    variable=mode_var, value="essay").pack(anchor=tk.W)
+    tk.Label(essay_frame, text="Returns: Full explanation and solution", 
+             font=("Segoe UI", 8), fg="gray").pack(anchor=tk.W)
     
     # === Display Tab ===
     display_frame = ttk.Frame(notebook, padding=10)
@@ -265,13 +294,22 @@ Middle Mouse + Scroll Down  History
             if on_api_change:
                 on_api_change()
         
+        # Check if mode changed
+        old_mode = settings_manager.get('question_mode', 'multiple_choice')
+        new_mode = mode_var.get()
+        
         # Save display settings
         settings_manager.set('font_size', font_var.get())
         settings_manager.set('popup_width', width_var.get())
         settings_manager.set('answers_per_line', apl_var.get())
+        settings_manager.set('question_mode', new_mode)
         
         if on_settings_change:
             on_settings_change()
+        
+        # Notify mode change
+        if old_mode != new_mode and on_mode_change:
+            on_mode_change(new_mode)
         
         messagebox.showinfo("Success", "Settings saved!")
         dialog.destroy()
