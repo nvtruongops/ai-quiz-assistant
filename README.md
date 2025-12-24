@@ -45,7 +45,7 @@ python run.pyw
 | Alt + C | Show answer history |
 | Middle Mouse + Scroll Down | Show answer history |
 | Alt + R | Reset answer history |
-| Alt + S | Open setup dialog |
+| Alt + S | Open Settings dialog |
 | Delete | Clear logs and answers |
 | ` (Backtick) | Exit application |
 

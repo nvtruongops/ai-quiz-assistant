@@ -14,14 +14,16 @@ from pynput.mouse import Controller as MouseController
 class PopupManager:
     """Manages popup window to display question analysis results"""
     
-    def __init__(self, config_manager):
+    def __init__(self, config_manager, settings_manager=None):
         """
         Initialize PopupManager
         
         Args:
             config_manager: ConfigManager instance to get configuration
+            settings_manager: SettingsManager instance for display settings
         """
         self.config = config_manager
+        self.settings = settings_manager
         self.current_popup = None
         self.mouse_controller = MouseController()
         self._is_visible = False
@@ -180,18 +182,22 @@ class PopupManager:
         popup.geometry(f"+{cursor_pos[0]+5}+{cursor_pos[1]+5}")
         
         # NO BORDER - ONLY TEXT
-        # White background, no border
         popup.config(bg="white")
         
-        # Frame containing text - small padding, compact
+        # Frame containing text
         main_frame = tk.Frame(popup, bg="white", padx=6, pady=4)
         main_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Create text widget - white background, no border, readable font
+        # Get font size from settings
+        font_size = 9
+        if self.settings:
+            font_size = self.settings.get('font_size', 9)
+        
+        # Create text widget
         text_widget = tk.Text(
             main_frame,
             wrap=tk.WORD,
-            font=("Segoe UI", 9),
+            font=("Segoe UI", font_size),
             bg="white",
             fg="#000000",
             relief=tk.FLAT,
@@ -204,18 +210,18 @@ class PopupManager:
         )
         text_widget.pack(fill=tk.BOTH, expand=True)
         
-        # Configure tags - black text, compact
+        # Configure tags
         text_widget.tag_configure("question", 
-                                 font=("Segoe UI", 9),
+                                 font=("Segoe UI", font_size),
                                  foreground="#000000", 
                                  spacing1=1,
                                  spacing3=0)
         text_widget.tag_configure("answer", 
-                                 font=("Segoe UI", 9, "bold"),
+                                 font=("Segoe UI", font_size, "bold"),
                                  foreground="#000000",
                                  spacing3=1)
         text_widget.tag_configure("normal", 
-                                 font=("Segoe UI", 9), 
+                                 font=("Segoe UI", font_size), 
                                  foreground="#000000")
         
         # Insert and format content
@@ -231,18 +237,26 @@ class PopupManager:
         lines = content.split('\n')
         line_count = len(lines)
         
+        # Get font size and popup width from settings
+        font_size = 9
+        max_popup_width = 400
+        if self.settings:
+            font_size = self.settings.get('font_size', 9)
+            max_popup_width = self.settings.get('popup_width', 400)
+        
         # Height: minimum 4 lines, maximum 20 lines
         text_height = max(4, min(20, line_count + 1))
         text_widget.config(height=text_height)
         
         # Auto adjust width based on longest line
         max_line_length = max((len(line) for line in lines), default=20)
-        # Font size 9: 1 character ≈ 7 pixels
-        estimated_width = max(250, min(600, max_line_length * 7 + 40))
+        char_width = int(font_size * 0.7)  # Approximate character width
+        estimated_width = max(250, min(max_popup_width, max_line_length * char_width + 40))
         
         # Set popup size
         popup_width = max(280, estimated_width)
-        popup_height = max(80, text_height * 18 + 30)
+        line_height = int(font_size * 1.8)
+        popup_height = max(80, text_height * line_height + 30)
         
         popup.update_idletasks()
         

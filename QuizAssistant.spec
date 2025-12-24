@@ -16,6 +16,7 @@ a = Analysis(
         'src.hotkey_listener',
         'src.system_tray',
         'src.models',
+        'src.settings_manager',
         'pynput.keyboard._win32',
         'pynput.mouse._win32',
     ],

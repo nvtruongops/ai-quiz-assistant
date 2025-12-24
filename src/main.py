@@ -23,6 +23,7 @@ try:
     from hotkey_listener import HotkeyListener
     from system_tray import SystemTray
     from models import QuizResult
+    from settings_manager import SettingsManager, show_api_key_dialog, show_settings_dialog
 except ImportError:
     # Fallback for bundled exe where modules are at root level
     from src.config_manager import ConfigManager
@@ -34,6 +35,7 @@ except ImportError:
     from src.hotkey_listener import HotkeyListener
     from src.system_tray import SystemTray
     from src.models import QuizResult
+    from src.settings_manager import SettingsManager, show_api_key_dialog, show_settings_dialog
 
 
 class QuizAssistantApp:
@@ -47,24 +49,27 @@ class QuizAssistantApp:
         self.logger = Logger()
         self.logger.info("Initializing AI Quiz Assistant...")
         
+        # Initialize settings manager
+        self.settings_manager = SettingsManager()
+        
         # Initialize config manager
         try:
             self.config_manager = ConfigManager()
-            
-            # Validate API key
-            if not self.config_manager.is_valid():
-                error_msg = (
-                    "GEMINI_API_KEY is invalid or not configured. "
-                    "Please add API key to .env file"
-                )
-                self.logger.error(error_msg)
-                raise ValueError(error_msg)
-            
             self.logger.info("Configuration loaded successfully")
             
         except Exception as e:
             self.logger.error(f"Failed to load configuration: {str(e)}", exc_info=True)
             raise
+        
+        # Check and prompt for API key if not configured
+        if not self._check_api_key():
+            self.logger.info("API key not found, showing setup dialog...")
+            api_key = show_api_key_dialog()
+            if api_key:
+                self._save_api_key(api_key)
+            else:
+                self.logger.error("No API key provided, exiting...")
+                sys.exit(1)
         
         # Initialize other components
         self.request_manager = RequestManager()
@@ -74,7 +79,8 @@ class QuizAssistantApp:
         self._initialize_ai_client()
         
         # Initialize UI components
-        self.popup_manager = PopupManager(config_manager=self.config_manager)
+        self.popup_manager = PopupManager(config_manager=self.config_manager, 
+                                          settings_manager=self.settings_manager)
         
         # Initialize hotkey listener with callbacks
         self.hotkey_listener = HotkeyListener(
@@ -92,7 +98,6 @@ class QuizAssistantApp:
         self.system_tray = SystemTray(app=self)
         
         # Thread pool executor for async processing
-        # Use max_workers=2 to limit concurrent requests
         self._thread_pool = ThreadPoolExecutor(
             max_workers=2,
             thread_name_prefix="APIWorker"
@@ -106,30 +111,45 @@ class QuizAssistantApp:
         
         # Debounce flag to avoid multiple captures
         self._last_capture_time = 0
-        self._capture_cooldown = 2.0  # 2 seconds cooldown
+        self._capture_cooldown = 2.0
         
-        # Answer history (only save answer, not question)
+        # Answer history
         self._answer_history = []
-        
-        # File to save answers
         self._answer_file = os.path.join("logs", "answers.txt")
-        
-        # Load answers from file if exists
         self._load_answers_from_file()
         
         self.logger.info("All components initialized successfully")
     
+    def _check_api_key(self) -> bool:
+        """Check if API key is configured"""
+        api_key = os.getenv('GEMINI_API_KEY', '')
+        return bool(api_key and api_key.strip() and api_key != 'YOUR_GEMINI_API_KEY_HERE')
+    
+    def _save_api_key(self, api_key: str) -> None:
+        """Save API key to config and environment"""
+        hashed_key = hashlib.sha256(api_key.encode()).hexdigest()
+        
+        config = {}
+        if os.path.exists("config.json"):
+            with open("config.json", 'r', encoding='utf-8') as f:
+                config = json.load(f)
+        
+        config['gemini_api_key_hash'] = hashed_key
+        
+        with open("config.json", 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        
+        os.environ['GEMINI_API_KEY'] = api_key
+        self.logger.info("API key saved successfully")
+    
     def _initialize_ai_client(self):
-        """
-        Initialize Gemini AI client
-        """
+        """Initialize Gemini AI client"""
         try:
-            api_key = self.config_manager.get_gemini_api_key()
+            api_key = os.getenv('GEMINI_API_KEY', '')
             if not api_key:
-                raise ValueError("GEMINI_API_KEY not found. Set GEMINI_API_KEY environment variable or run: python setup.py")
+                raise ValueError("GEMINI_API_KEY not found")
             self.ai_client = GeminiAPIClient(api_key=api_key, logger=self.logger)
             self.logger.info("Gemini API client initialized")
-                
         except Exception as e:
             self.logger.error(f"Failed to initialize AI client: {str(e)}", exc_info=True)
             raise
@@ -511,38 +531,33 @@ class QuizAssistantApp:
     def on_show_answers_hotkey(self):
         """
         Handle Alt+C hotkey - TOGGLE hide/show all saved answers
-        Automatically hide other popup (Alt+X) if showing
         """
         self.logger.info("Show answers hotkey triggered (Alt+C)")
         
         try:
-            # If popup showing → Hide
             if self.popup_manager.is_visible():
                 self.popup_manager.hide()
                 self.logger.info("Answers popup hidden")
                 return
             
-            # If popup hidden → Show with answer list
             if not self._answer_history:
-                self.popup_manager.show("📝 No answers saved yet\nPress Alt+Z to capture questions")
+                self.popup_manager.show("No answers saved yet\nPress Alt+Z to capture questions")
                 return
             
-            # Format: 10 answers per line
-            answers_per_line = 10
+            # Get answers per line from settings
+            answers_per_line = self.settings_manager.get('answers_per_line', 10)
             lines = []
             for i in range(0, len(self._answer_history), answers_per_line):
                 chunk = self._answer_history[i:i+answers_per_line]
                 lines.append(" ".join(chunk))
             
             answers_text = "\n".join(lines)
-            message = answers_text
-            
-            self.popup_manager.show(message)
+            self.popup_manager.show(answers_text)
             self.logger.info(f"Showed {len(self._answer_history)} answers")
             
         except Exception as e:
             self.logger.error(f"Error in show answers hotkey: {str(e)}", exc_info=True)
-            self.popup_manager.show(f"❌ Error: {str(e)}")
+            self.popup_manager.show(f"Error: {str(e)}")
     
     def on_reset_answers_hotkey(self):
         """
@@ -571,120 +586,28 @@ class QuizAssistantApp:
     
     def on_setup_hotkey(self):
         """
-        Handle Alt+S hotkey - Show Setup Menu
+        Handle Alt+S hotkey - Show Settings Dialog
         """
-        self.logger.info("Setup menu hotkey triggered (Alt+S)")
+        self.logger.info("Settings hotkey triggered (Alt+S)")
         
         try:
-            # Show setup dialog
-            self.show_setup_dialog()
+            def on_api_change():
+                self._initialize_ai_client()
+                self.logger.info("AI client re-initialized after API change")
+            
+            def on_settings_change():
+                self.logger.info("Settings changed, reloading...")
+                self.settings_manager.load_settings()
+            
+            show_settings_dialog(
+                self.settings_manager,
+                on_api_change=on_api_change,
+                on_settings_change=on_settings_change
+            )
             
         except Exception as e:
-            self.logger.error(f"Error showing setup dialog: {str(e)}", exc_info=True)
-            self.popup_manager.show(f"❌ Error: {str(e)}")
-    
-    def show_setup_dialog(self):
-        """
-        Show setup dialog for Gemini API configuration
-        """
-        try:
-            import tkinter as tk
-            from tkinter import messagebox, simpledialog
-            
-            # Create dialog window
-            dialog = tk.Toplevel()
-            dialog.title("AI Quiz Assistant - Setup")
-            dialog.geometry("400x200")
-            dialog.resizable(False, False)
-            
-            # Center the dialog
-            dialog.transient()
-            dialog.grab_set()
-            
-            # Title
-            title_label = tk.Label(dialog, text="🔧 AI QUIZ ASSISTANT SETUP", 
-                                 font=("Arial", 14, "bold"))
-            title_label.pack(pady=10)
-            
-            # Buttons frame
-            button_frame = tk.Frame(dialog)
-            button_frame.pack(pady=10, padx=20, fill=tk.X)
-            
-            def setup_gemini():
-                try:
-                    api_key = simpledialog.askstring("Setup Google Gemini", 
-                                                   "Enter Gemini API Key:",
-                                                   parent=dialog, show='*')
-                    if api_key:
-                        # Hash the API key for verification
-                        hashed_key = hashlib.sha256(api_key.encode()).hexdigest()
-                        
-                        # Read current config
-                        config_file = "config.json"
-                        config = {}
-                        if os.path.exists(config_file):
-                            with open(config_file, 'r', encoding='utf-8') as f:
-                                config = json.load(f)
-                        
-                        # Update config - only store hash, not the real key
-                        config['gemini_api_key_hash'] = hashed_key
-                        
-                        # Save config
-                        with open(config_file, 'w', encoding='utf-8') as f:
-                            json.dump(config, f, indent=2, ensure_ascii=False)
-                        
-                        # Set environment variable for current session
-                        os.environ['GEMINI_API_KEY'] = api_key
-                        
-                        messagebox.showinfo("Success", "✅ Google Gemini configured!")
-                        dialog.destroy()
-                        
-                        # Re-initialize AI client
-                        self._initialize_ai_client()
-                            
-                except Exception as e:
-                    messagebox.showerror("Error", f"❌ Error: {str(e)}")
-            
-            def show_config():
-                try:
-                    config_file = "config.json"
-                    if not os.path.exists(config_file):
-                        messagebox.showinfo("Configuration", "❌ No configuration file found")
-                        return
-                    
-                    with open(config_file, 'r', encoding='utf-8') as f:
-                        config = json.load(f)
-                    
-                    # Create config info to display
-                    info = "📋 CURRENT CONFIGURATION:\n\n"
-                    
-                    # Check Gemini status
-                    has_gemini_hash = bool(config.get('gemini_api_key_hash'))
-                    has_gemini_env = bool(os.getenv('GEMINI_API_KEY'))
-                    if has_gemini_hash or has_gemini_env:
-                        info += "✅ Google Gemini: Configured\n"
-                    else:
-                        info += "❌ Google Gemini: Not configured\n"
-                    
-                    messagebox.showinfo("Current configuration", info)
-                    
-                except Exception as e:
-                    messagebox.showerror("Error", f"❌ Error reading config: {str(e)}")
-            
-            # Buttons
-            tk.Button(button_frame, text="1. Setup Google Gemini", 
-                     command=setup_gemini, width=25).pack(pady=2)
-            tk.Button(button_frame, text="2. View current configuration", 
-                     command=show_config, width=25).pack(pady=2)
-            tk.Button(button_frame, text="3. Close", 
-                     command=dialog.destroy, width=25).pack(pady=5)
-            
-            # Wait for dialog to close
-            dialog.wait_window()
-            
-        except Exception as e:
-            self.logger.error(f"Error creating setup dialog: {str(e)}", exc_info=True)
-            self.popup_manager.show(f"❌ Error creating setup dialog: {str(e)}")
+            self.logger.error(f"Error showing settings dialog: {str(e)}", exc_info=True)
+            self.popup_manager.show(f"Error: {str(e)}")
     
     def _save_answers_to_file(self):
         """
