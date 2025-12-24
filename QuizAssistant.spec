@@ -1,12 +1,24 @@
 # -*- mode: python ; coding: utf-8 -*-
 
-
 a = Analysis(
-    ['run.pyw', 'src/main.py', 'src/config_manager.py', 'src/logger.py', 'src/screenshot_manager.py', 'src/gemini_client.py', 'src/request_manager.py', 'src/popup_manager.py', 'src/hotkey_listener.py', 'src/system_tray.py', 'src/models.py'],
+    ['run.pyw'],
     pathex=['src'],
     binaries=[],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=[
+        'src.main',
+        'src.config_manager',
+        'src.logger',
+        'src.screenshot_manager',
+        'src.gemini_client',
+        'src.request_manager',
+        'src.popup_manager',
+        'src.hotkey_listener',
+        'src.system_tray',
+        'src.models',
+        'pynput.keyboard._win32',
+        'pynput.mouse._win32',
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -14,6 +26,7 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+
 pyz = PYZ(a.pure)
 
 exe = EXE(
@@ -35,4 +48,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='icon.ico',
+    version='version_info.txt',
 )

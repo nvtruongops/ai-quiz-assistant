@@ -187,11 +187,11 @@ class PopupManager:
         main_frame = tk.Frame(popup, bg="white", padx=6, pady=4)
         main_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Create text widget - white background, no border, no edge, FONT SIZE 6
+        # Create text widget - white background, no border, readable font
         text_widget = tk.Text(
             main_frame,
             wrap=tk.WORD,
-            font=("Segoe UI", 6),  # Font size 6
+            font=("Segoe UI", 9),
             bg="white",
             fg="#000000",
             relief=tk.FLAT,
@@ -204,18 +204,18 @@ class PopupManager:
         )
         text_widget.pack(fill=tk.BOTH, expand=True)
         
-        # Configure tags - black text, compact, FONT SIZE 6
+        # Configure tags - black text, compact
         text_widget.tag_configure("question", 
-                                 font=("Segoe UI", 6),
+                                 font=("Segoe UI", 9),
                                  foreground="#000000", 
                                  spacing1=1,
                                  spacing3=0)
         text_widget.tag_configure("answer", 
-                                 font=("Segoe UI", 6, "bold"),  # Answer in bold
-                                 foreground="#000000",  # Black
+                                 font=("Segoe UI", 9, "bold"),
+                                 foreground="#000000",
                                  spacing3=1)
         text_widget.tag_configure("normal", 
-                                 font=("Segoe UI", 6), 
+                                 font=("Segoe UI", 9), 
                                  foreground="#000000")
         
         # Insert and format content
@@ -227,22 +227,22 @@ class PopupManager:
         # Update to get actual size
         popup.update_idletasks()
         
-        # AUTO SCALE - Calculate size based on content (FONT SIZE 6)
+        # AUTO SCALE - Calculate size based on content
         lines = content.split('\n')
         line_count = len(lines)
         
-        # Height: minimum 4 lines, maximum 15 lines (smaller)
-        text_height = max(4, min(15, line_count + 1))
+        # Height: minimum 4 lines, maximum 20 lines
+        text_height = max(4, min(20, line_count + 1))
         text_widget.config(height=text_height)
         
         # Auto adjust width based on longest line
         max_line_length = max((len(line) for line in lines), default=20)
-        # Font size 6: 1 character ≈ 4 pixels (smaller)
-        estimated_width = max(200, min(800, max_line_length * 4 + 30))
+        # Font size 9: 1 character ≈ 7 pixels
+        estimated_width = max(250, min(600, max_line_length * 7 + 40))
         
-        # Set popup size - MORE COMPACT
-        popup_width = max(250, estimated_width)
-        popup_height = max(60, text_height * 14 + 30)  # Smaller
+        # Set popup size
+        popup_width = max(280, estimated_width)
+        popup_height = max(80, text_height * 18 + 30)
         
         popup.update_idletasks()
         
