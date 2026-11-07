@@ -5,19 +5,28 @@ Provides logging functionality with file rotation
 
 import logging
 import os
+from typing import Optional
 from logging.handlers import RotatingFileHandler
+
+_src_dir = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(_src_dir)
 
 
 class Logger:
     """Logger class with rotating file handler"""
     
-    def __init__(self, log_file: str = "logs/app.log"):
+    def __init__(self, log_file: Optional[str] = None):
         """
         Initialize logger with rotating file handler
         
         Args:
-            log_file: Path to log file (default: logs/app.log)
+            log_file: Path to log file (default: logs/app.log relative to PROJECT_ROOT)
         """
+        if not log_file:
+            log_file = os.path.join(PROJECT_ROOT, "logs", "app.log")
+        elif not os.path.isabs(log_file):
+            log_file = os.path.join(PROJECT_ROOT, log_file)
+
         self.logger = None
         self.log_file = log_file
         self.setup_logger(log_file)
@@ -33,7 +42,7 @@ class Logger:
         # Create logs directory if it doesn't exist
         log_dir = os.path.dirname(log_file)
         if log_dir and not os.path.exists(log_dir):
-            os.makedirs(log_dir)
+            os.makedirs(log_dir, exist_ok=True)
         
         # Create logger
         self.logger = logging.getLogger("QuizAssistant")

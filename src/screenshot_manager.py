@@ -4,22 +4,40 @@ Manages screen capture and image processing
 """
 
 import io
+import os
+import hashlib
+from datetime import datetime
 from typing import Optional, Tuple
 from PIL import Image, ImageGrab
 import screeninfo
+
+_src_dir = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(_src_dir)
 
 
 class ScreenshotManager:
     """Manages screen capture and image processing"""
     
-    def __init__(self, logger=None):
+    def __init__(self, logger=None, save_screenshots=True, screenshot_dir=None):
         """
         Initialize ScreenshotManager
         
         Args:
             logger: Logger instance (optional)
+            save_screenshots: Whether to save screenshots to disk (default: True)
+            screenshot_dir: Directory to save screenshots (default: logs/screenshots relative to PROJECT_ROOT)
         """
         self.logger = logger
+        self.save_screenshots = save_screenshots
+        if not screenshot_dir:
+            screenshot_dir = os.path.join(PROJECT_ROOT, "logs", "screenshots")
+        elif not os.path.isabs(screenshot_dir):
+            screenshot_dir = os.path.join(PROJECT_ROOT, screenshot_dir)
+        self.screenshot_dir = screenshot_dir
+        
+        # Create screenshot directory if saving is enabled
+        if self.save_screenshots:
+            os.makedirs(self.screenshot_dir, exist_ok=True)
     
     def capture_screen(self) -> Optional[Image.Image]:
         """
@@ -54,13 +72,14 @@ class ScreenshotManager:
                 self.logger.error(f"Failed to capture screen: {str(e)}", exc_info=True)
             return None
     
-    def save_to_memory(self, image: Image.Image) -> Optional[bytes]:
+    def save_to_memory(self, image: Image.Image, save_to_disk=True) -> Optional[bytes]:
         """
         Convert Image to bytes (PNG format) for API sending
-        Don't save file to disk for speed improvement
+        Optionally save file to disk for later review
         
         Args:
             image: PIL Image object
+            save_to_disk: Whether to save screenshot to disk (default: True)
             
         Returns:
             Image bytes if successful, None if failed
@@ -78,6 +97,10 @@ class ScreenshotManager:
             # Close buffer
             buffer.close()
             
+            # Save to disk if enabled
+            if save_to_disk and self.save_screenshots:
+                self._save_screenshot_to_disk(image)
+            
             if self.logger:
                 self.logger.info(f"Image saved to memory: {len(image_bytes)} bytes")
             
@@ -86,6 +109,35 @@ class ScreenshotManager:
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Failed to save image to memory: {str(e)}", exc_info=True)
+            return None
+    
+    def _save_screenshot_to_disk(self, image: Image.Image) -> Optional[str]:
+        """
+        Save screenshot to disk with timestamp
+        
+        Args:
+            image: PIL Image object
+            
+        Returns:
+            Saved file path if successful, None if failed
+        """
+        try:
+            # Generate filename with timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"screenshot_{timestamp}.png"
+            filepath = os.path.join(self.screenshot_dir, filename)
+            
+            # Save image
+            image.save(filepath, format='PNG')
+            
+            if self.logger:
+                self.logger.info(f"Screenshot saved to {filepath}")
+            
+            return filepath
+            
+        except Exception as e:
+            if self.logger:
+                self.logger.error(f"Failed to save screenshot to disk: {str(e)}", exc_info=True)
             return None
     
     def get_primary_monitor(self) -> dict:
@@ -176,3 +228,36 @@ class ScreenshotManager:
             if self.logger:
                 self.logger.error(f"Failed to capture and save screenshot: {str(e)}", exc_info=True)
             return None
+
+    @staticmethod
+    def compute_image_hash(image: Image.Image) -> str:
+        """
+        Compute image fingerprint using perceptual dHash + SHA-256 digest.
+        Allows fast comparison and deduplication in the current session.
+        
+        Args:
+            image: PIL Image object
+            
+        Returns:
+            Hex string hash representing the image
+        """
+        try:
+            # Grayscale 32x32 thumbnail
+            small = image.convert('L').resize((32, 32), Image.Resampling.BILINEAR)
+            raw_bytes = small.tobytes()
+            
+            # Compute difference hash (dHash horizontal gradient)
+            bits = []
+            for row in range(32):
+                row_offset = row * 32
+                for col in range(31):
+                    bits.append('1' if raw_bytes[row_offset + col] > raw_bytes[row_offset + col + 1] else '0')
+            dhash_hex = hex(int(''.join(bits), 2))[2:]
+            sha_hex = hashlib.sha256(raw_bytes).hexdigest()[:16]
+            return f"{dhash_hex}_{sha_hex}"
+        except Exception:
+            try:
+                return hashlib.sha256(image.tobytes()).hexdigest()[:32]
+            except Exception:
+                return ""
+

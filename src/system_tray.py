@@ -1,166 +1,240 @@
 """
 System Tray Module
-Manages system tray icon and menu
+Manages system tray icon, notification popups, and quick action context menu.
 """
 
+import os
+import subprocess
 import pystray
 from PIL import Image, ImageDraw, ImageFont
 from threading import Thread
+from typing import Optional
+
+_src_dir = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(_src_dir)
+
+
+def launch_file_explorer(path: str) -> bool:
+    """Open folder in Windows File Explorer using multiple robust fallback methods"""
+    try:
+        if not os.path.isabs(path):
+            target_path = os.path.normpath(os.path.join(PROJECT_ROOT, path))
+        else:
+            target_path = os.path.normpath(path)
+        os.makedirs(target_path, exist_ok=True)
+
+        # Method 1: Direct explorer.exe subprocess (opens active window in foreground)
+        try:
+            subprocess.Popen(['explorer.exe', target_path])
+            return True
+        except Exception:
+            pass
+
+        # Method 2: ShellExecuteW with explorer.exe and SW_SHOWNORMAL (1)
+        try:
+            import ctypes
+            res = ctypes.windll.shell32.ShellExecuteW(None, "open", "explorer.exe", target_path, None, 1)
+            if res > 32:
+                return True
+        except Exception:
+            pass
+
+        # Method 3: os.startfile
+        try:
+            os.startfile(target_path)
+            return True
+        except Exception:
+            pass
+
+        # Method 4: cmd start
+        try:
+            subprocess.Popen(f'start "" "{target_path}"', shell=True)
+            return True
+        except Exception:
+            pass
+
+        return False
+    except Exception:
+        return False
 
 
 class SystemTray:
-    """Manages system tray icon and menu"""
-    
+    """Manages system tray icon and context menu"""
+
     def __init__(self, app):
         """
         Initialize SystemTray
-        
         Args:
             app: QuizAssistantApp instance
         """
         self.app = app
-        self.icon = None
+        self.icon: Optional[pystray.Icon] = None
         self._running = False
-    
+
     def create_icon(self) -> Image.Image:
         """
-        Create simple system tray icon using PIL
-        Draw "Q" letter on background
-        
-        Returns:
-            PIL Image object for icon
+        Load assets/icon.png or icon.ico if present, otherwise generate modern PIL icon
         """
-        # Create 64x64 image with blue background
-        width = 64
-        height = 64
-        image = Image.new('RGB', (width, height), color='#0066CC')
-        
-        # Create draw object
+        png_path = os.path.join(PROJECT_ROOT, "assets", "icon.png")
+        if os.path.exists(png_path):
+            try:
+                img = Image.open(png_path).convert('RGBA')
+                return img.resize((64, 64), Image.Resampling.LANCZOS)
+            except Exception:
+                pass
+
+        ico_path = os.path.join(PROJECT_ROOT, "assets", "icon.ico")
+        if not os.path.exists(ico_path):
+            ico_path = os.path.join(PROJECT_ROOT, "icon.ico")
+        if os.path.exists(ico_path):
+            try:
+                img = Image.open(ico_path)
+                return img
+            except Exception:
+                pass
+
+        # Fallback generated icon (Obsidian squircle with cyan accent)
+        width, height = 64, 64
+        image = Image.new('RGBA', (width, height), color=(0, 0, 0, 0))
         draw = ImageDraw.Draw(image)
-        
-        # Draw white "Q" letter in center
-        # Use default font since no font file available
+        draw.rounded_rectangle((2, 2, 61, 61), radius=14, fill=(15, 23, 42, 255), outline=(2, 132, 199, 255), width=2)
+
         try:
-            # Try to load font with large size
-            font = ImageFont.truetype("arial.ttf", 48)
-        except:
-            # Fallback to default font
-            font = ImageFont.load_default()
-        
-        # Calculate position to center "Q" letter
+            font = ImageFont.truetype("segoeui.ttf", 32)
+        except Exception:
+            try:
+                font = ImageFont.truetype("arial.ttf", 32)
+            except Exception:
+                font = ImageFont.load_default()
+
         text = "Q"
-        
-        # Use textbbox to calculate text size
         try:
             bbox = draw.textbbox((0, 0), text, font=font)
-            text_width = bbox[2] - bbox[0]
-            text_height = bbox[3] - bbox[1]
-        except:
-            # Fallback for older PIL versions
-            text_width = 30
-            text_height = 30
-        
-        x = (width - text_width) // 2
-        y = (height - text_height) // 2
-        
-        # Draw "Q" letter
-        draw.text((x, y), text, fill='white', font=font)
-        
+            tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        except Exception:
+            tw, th = 24, 24
+
+        x = (width - tw) // 2
+        y = (height - th) // 2 - 2
+        draw.text((x, y), text, fill=(6, 182, 212, 255), font=font)
         return image
-    
+
     def create_menu(self) -> pystray.Menu:
-        """
-        Create context menu with items:
-        - "Status: Running"
-        - separator
-        - "Exit"
-        
-        Returns:
-            pystray.Menu object
-        """
-        return pystray.Menu(
-            pystray.MenuItem(
-                "Status: Running",
-                lambda: None,  # Non-clickable status item
-                enabled=False
-            ),
+        """Create context menu with quick actions"""
+        provider_name = "Gemini"
+        mode_name = "Multiple Choice"
+
+        if hasattr(self.app, 'config_manager'):
+            provider = self.app.config_manager.get('API_PROVIDER', 'gemini')
+            provider_name = "Google Gemini" if provider == 'gemini' else "Custom Local"
+
+        hk_c = "Z"
+        hk_ans = "C"
+        hk_h = "H"
+        hk_s = "S"
+
+        if hasattr(self.app, 'settings_manager'):
+            mode = self.app.settings_manager.get('question_mode', 'multiple_choice')
+            if mode == 'essay':
+                mode_name = "Essay / Open-ended"
+            elif mode == 'multiple_choice_explanation':
+                mode_name = "MC + Explanation"
+            else:
+                mode_name = "Multiple Choice"
+
+            hk_c = self.app.settings_manager.get('hotkey_capture', 'z').upper()
+            hk_ans = self.app.settings_manager.get('hotkey_answers', 'c').upper()
+            hk_h = self.app.settings_manager.get('hotkey_history', 'h').upper()
+            hk_s = self.app.settings_manager.get('hotkey_settings', 's').upper()
+
+        def trigger(callback):
+            def wrapper(icon=None, item=None):
+                try:
+                    callback()
+                except Exception as e:
+                    if hasattr(self.app, 'logger'):
+                        self.app.logger.error(f"Tray action error: {e}")
+            return wrapper
+
+        def open_folder(path):
+            def wrapper(icon=None, item=None):
+                if hasattr(self.app, 'logger'):
+                    self.app.logger.info(f"Opening folder via system tray: {path}")
+                launch_file_explorer(path)
+            return wrapper
+
+        def toggle_provider(icon=None, item=None):
+            if not hasattr(self.app, 'settings_manager') or not hasattr(self.app, 'config_manager'):
+                return
+            cur = self.app.config_manager.get('API_PROVIDER', 'gemini')
+            nxt = 'custom' if cur == 'gemini' else 'gemini'
+            self.app.settings_manager.set('api_provider', nxt)
+            self.app.config_manager.config['API_PROVIDER'] = nxt
+            os.environ['API_PROVIDER'] = nxt
+            self.app._initialize_ai_client()
+            p_display = "Google Gemini" if nxt == 'gemini' else "Custom Local"
+            self.show_notification("AI Quiz Assistant", f"Switched provider to: {p_display}")
+            if self.icon:
+                self.icon.menu = self.create_menu()
+
+        menu_items = [
+            pystray.MenuItem("🟢 Status: Active", lambda: None, enabled=False),
+            pystray.MenuItem(f"🤖 Provider: {provider_name} (Click to switch)", toggle_provider),
+            pystray.MenuItem(f"📝 Mode: {mode_name}", lambda: None, enabled=False),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem(
-                "Exit",
-                self.on_quit
-            )
-        )
-    
+            pystray.MenuItem(f"📸 Capture Screen (Alt+{hk_c})", trigger(self.app.on_capture_hotkey)),
+            pystray.MenuItem(f"🎯 Show Latest Result (Alt+{hk_ans})", trigger(self.app.on_show_answers_hotkey)),
+            pystray.MenuItem(f"📖 Detailed History (Alt+{hk_h})", trigger(self.app.on_show_detailed_history_hotkey)),
+            pystray.Menu.SEPARATOR,
+            pystray.MenuItem(f"⚙️ Settings (Alt+{hk_s})", trigger(self.app.on_setup_hotkey)),
+            pystray.MenuItem("📁 Open Logs Folder", open_folder("logs")),
+            pystray.MenuItem("📸 Open Screenshots Folder", open_folder("logs/screenshots")),
+            pystray.Menu.SEPARATOR,
+            pystray.MenuItem("❌ Exit Application", self.on_quit)
+        ]
+
+        return pystray.Menu(*menu_items)
+
     def on_quit(self, icon=None, item=None):
-        """
-        Handle event when user selects "Exit" from menu
-        Stop application
-        
-        Args:
-            icon: pystray.Icon object (optional)
-            item: Menu item clicked (optional)
-        """
+        """Handle Quit menu click"""
         if self.icon:
             self.icon.stop()
-        
-        # Stop application
         if self.app:
             self.app.stop()
-    
+
     def show_notification(self, title: str, message: str):
-        """
-        Show notification from system tray (optional)
-        
-        Args:
-            title: Notification title
-            message: Notification content
-        """
+        """Show Windows tray notification"""
         if self.icon and self.icon.visible:
             try:
                 self.icon.notify(message, title)
-            except Exception as e:
-                # Notification not supported on some systems
+            except Exception:
                 pass
-    
+
     def run(self):
-        """
-        Run system tray in separate thread
-        Create icon and menu, then run event loop
-        """
+        """Run system tray event loop in background thread"""
         if self._running:
             return
-        
         self._running = True
-        
-        # Create icon image
+
         icon_image = self.create_icon()
-        
-        # Create menu
         menu = self.create_menu()
-        
-        # Create pystray.Icon
+
         self.icon = pystray.Icon(
             "QuizAssistant",
             icon_image,
             "AI Quiz Assistant",
             menu
         )
-        
-        # Run icon (blocking call)
         self.icon.run()
-    
+
     def start(self):
-        """
-        Start system tray in separate thread
-        """
+        """Start system tray thread"""
         if not self._running:
-            thread = Thread(target=self.run, daemon=True)
+            thread = Thread(target=self.run, daemon=True, name="SystemTrayThread")
             thread.start()
-    
+
     def stop(self):
-        """
-        Stop system tray
-        """
+        """Stop system tray"""
         if self.icon:
             self.icon.stop()
         self._running = False
