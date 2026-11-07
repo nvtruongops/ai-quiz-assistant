@@ -62,6 +62,7 @@ try:
     )
     from request_manager import RequestManager
     from popup_manager import PopupManager
+    from autofill_manager import AutoFillManager
     from hotkey_listener import HotkeyListener
     from system_tray import SystemTray
     from models import QuizResult, QuizQuestion
@@ -89,6 +90,7 @@ except ImportError:
     )
     from src.request_manager import RequestManager
     from src.popup_manager import PopupManager
+    from src.autofill_manager import AutoFillManager
     from src.hotkey_listener import HotkeyListener
     from src.system_tray import SystemTray
     from src.models import QuizResult, QuizQuestion
@@ -123,13 +125,17 @@ class QuizAssistantApp:
             save_screenshots=self.settings_manager.get('save_screenshots', True)
         )
 
-        # 5. Initialize UI Popup Manager
+        # 5. Initialize UI Popup Manager & AutoFill Manager
         self.popup_manager = PopupManager(
             config_manager=self.config_manager,
             settings_manager=self.settings_manager,
             on_prev=self.on_nav_prev,
             on_next=self.on_nav_next,
             on_reload=self.on_nav_reload
+        )
+        self.autofill_manager = AutoFillManager(
+            logger=self.logger,
+            settings_manager=self.settings_manager
         )
 
         # 6. Initialize AI Client
@@ -139,6 +145,7 @@ class QuizAssistantApp:
         # 7. Initialize Hotkey Listener
         self.hotkey_listener = HotkeyListener(
             on_capture_key=self.on_capture_hotkey,
+            on_autofill_key=self.on_autofill_hotkey,
             on_hide_key=self.on_hide_hotkey,
             on_exit_key=self.on_exit_hotkey,
             on_clear_logs=self.on_clear_logs_hotkey,
@@ -258,9 +265,13 @@ class QuizAssistantApp:
 
             provider = self.config_manager.get('API_PROVIDER', 'gemini')
             p_text = "Google Gemini" if provider == 'gemini' else "Custom Local"
+            hk_cap = self.settings_manager.get('hotkey_capture', 'z').upper()
+            hk_fill = self.settings_manager.get('hotkey_autofill', 'f').upper()
+            hk_ans = self.settings_manager.get('hotkey_answers', 'c').upper()
+            hk_his = self.settings_manager.get('hotkey_history', 'h').upper()
             self.system_tray.show_notification(
                 "AI Quiz Assistant",
-                f"Using {p_text}.\nAlt+Z: Capture | Alt+C: Latest result | Alt+H: History 1..x"
+                f"Using {p_text}.\nAlt+{hk_cap}: Capture | Alt+{hk_fill}: Auto-Fill | Alt+{hk_ans}: Latest | Alt+{hk_his}: History"
             )
 
             while self._running:
@@ -328,6 +339,72 @@ class QuizAssistantApp:
             self.logger.error(f"Capture error: {e}", exc_info=True)
             self._latest_error = f"Screenshot error: {str(e)[:80]}"
 
+    def on_autofill_hotkey(self):
+        """
+        Handle Auto-Fill hotkey (Alt+F)
+        Captures screen, solves questions via AI, and automatically navigates cursor to click answer choices.
+        """
+        if hasattr(self, 'autofill_manager') and not self.autofill_manager.is_enabled():
+            self.logger.warning("Auto-fill hotkey triggered but feature is disabled in settings")
+            return
+
+        now = time.time()
+        if now - self._last_capture_time < self._capture_cooldown:
+            self.logger.info("Auto-fill capture suppressed (cooldown active)")
+            return
+        self._last_capture_time = now
+
+        self.logger.info("⚡ Auto-fill hotkey triggered (Alt+F)")
+
+        # Hide any open popup
+        if self.popup_manager.is_visible():
+            self.popup_manager.hide()
+
+        try:
+            screenshot = self.screenshot_manager.capture_screen()
+            if screenshot is None:
+                self.logger.error("Auto-fill screenshot capture failed: screenshot is None")
+                self._latest_error = "Could not capture screen for auto-fill. Please try again."
+                return
+
+            capture_bbox = self.screenshot_manager.get_last_capture_bbox()
+            image_bytes = self.screenshot_manager.save_to_memory(screenshot)
+            if not image_bytes:
+                self.logger.error("Failed to convert screenshot to memory bytes for auto-fill")
+                self._latest_error = "Failed to process screenshot."
+                return
+
+            img_hash = self.screenshot_manager.compute_image_hash(screenshot)
+            req_id = self.request_manager.create_request()
+
+            item = {
+                "req_id": req_id,
+                "screenshot": screenshot,
+                "image_bytes": image_bytes,
+                "img_hash": img_hash,
+                "captured_at": now,
+                "is_autofill": True,
+                "capture_bbox": capture_bbox
+            }
+            self._capture_queue.put(item)
+            q_size = self._capture_queue.qsize()
+
+            if sys.platform == 'win32':
+                try:
+                    import winsound
+                    winsound.MessageBeep(winsound.MB_ICONEXCLAMATION)
+                except Exception:
+                    pass
+
+            self.logger.info(
+                f"Auto-fill task enqueued [req_id={req_id}, hash={img_hash[:16]}..., queue_size={q_size}]. "
+                "Background AI analysis and automated clicking will follow."
+            )
+
+        except Exception as e:
+            self.logger.error(f"Auto-fill capture error: {e}", exc_info=True)
+            self._latest_error = f"Auto-fill error: {str(e)[:80]}"
+
     def _queue_worker_loop(self):
         """Dedicated background thread that processes screenshot captures sequentially (FIFO)"""
         self.logger.info("Capture queue worker loop started")
@@ -349,10 +426,12 @@ class QuizAssistantApp:
                 self._is_queue_processing = False
 
     def _process_queue_item(self, item: dict):
-        """Process a single queued screenshot item with deduplication caching"""
+        """Process a single queued screenshot item with deduplication caching and optional auto-fill"""
         req_id = item["req_id"]
         img_hash = item["img_hash"]
         image_bytes = item["image_bytes"]
+        is_autofill = item.get("is_autofill", False)
+        capture_bbox = item.get("capture_bbox") or self.screenshot_manager.get_last_capture_bbox()
 
         # 1. Deduplication check: Has this exact image been processed in this session?
         if img_hash and img_hash in self._image_cache:
@@ -364,16 +443,22 @@ class QuizAssistantApp:
             self._latest_result = cached_result
             self._latest_error = None
             self.request_manager.set_result(cached_result)
+
+            if is_autofill and hasattr(self, 'autofill_manager') and self.autofill_manager.is_enabled():
+                self._execute_autofill(cached_result, capture_bbox)
             return
 
         # 2. Cache miss: Call AI client
-        self.logger.info(f"Processing screenshot via AI (req_id={req_id}, hash={img_hash[:16]}...)")
+        self.logger.info(f"Processing screenshot via AI (req_id={req_id}, hash={img_hash[:16]}..., autofill={is_autofill})")
         try:
             if not self.ai_client:
                 self._initialize_ai_client()
 
             result = self.ai_client.analyze_quiz(image_bytes)
             self._handle_api_success(result, req_id, img_hash)
+
+            if is_autofill and hasattr(self, 'autofill_manager') and self.autofill_manager.is_enabled():
+                self._execute_autofill(result, capture_bbox)
 
         except NoQuestionsFoundError:
             err_msg = "No questions found in the screenshot."
@@ -398,6 +483,27 @@ class QuizAssistantApp:
             self.logger.error(f"API processing error: {e}", exc_info=True)
             self._latest_error = err_msg
             self.request_manager.set_error(err_msg)
+
+    def _execute_autofill(self, result: QuizResult, capture_bbox: Optional[Tuple[int, int, int, int]] = None):
+        """Execute automated answer clicking in background"""
+        def on_finished(success_clicks: int, total_targets: int, filled_summary: List[str]):
+            self.logger.info(
+                f"⚡ Auto-fill completed: {success_clicks}/{total_targets} answers filled. "
+                f"Items: {', '.join(filled_summary) if filled_summary else 'None'}"
+            )
+            if sys.platform == 'win32':
+                try:
+                    import winsound
+                    winsound.MessageBeep(winsound.MB_OK if success_clicks > 0 else winsound.MB_ICONHAND)
+                except Exception:
+                    pass
+
+        self.logger.info(f"Starting auto-fill execution for {len(result.questions)} questions...")
+        self.autofill_manager.fill_answers_async(
+            quiz_result=result,
+            capture_bbox=capture_bbox,
+            on_finished=on_finished
+        )
 
     def _handle_api_success(self, result: QuizResult, request_id: str, img_hash: str):
         """
@@ -943,6 +1049,8 @@ class QuizAssistantApp:
         self.logger.info("Stopping AI Quiz Assistant...")
 
         try:
+            if hasattr(self, 'autofill_manager') and self.autofill_manager:
+                self.autofill_manager.abort()
             if hasattr(self, 'settings_manager') and self.settings_manager:
                 self.settings_manager.save_settings()
             if hasattr(self, '_capture_queue'):

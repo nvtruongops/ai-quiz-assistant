@@ -35,6 +35,7 @@ DEFAULT_SETTINGS = {
     'gemini_model': '',
     # Hotkey combinations (Alt + key)
     'hotkey_capture': 'z',
+    'hotkey_autofill': 'f',
     'hotkey_answers': 'c',
     'hotkey_history': 'h',
     'hotkey_reset': 'r',
@@ -42,6 +43,10 @@ DEFAULT_SETTINGS = {
     'hotkey_exit': 'q',
     'enable_mouse_gestures': True,
     'save_screenshots': True,
+    'enable_autofill': True,
+    'autofill_click_delay_ms': 200,
+    'autofill_restore_cursor': True,
+    'autofill_smooth_movement': True,
 }
 
 
@@ -1591,12 +1596,13 @@ def show_settings_dialog(
 
     hotkey_entries = {}
     hotkey_defs = [
-        ('hotkey_capture', 'Capture & Analyze Screen:', 'z'),
-        ('hotkey_answers', 'Show Latest Question Result:', 'c'),
-        ('hotkey_history', 'View Question History (1..x):', 'h'),
-        ('hotkey_reset',   'Reset Quiz Session History:', 'r'),
-        ('hotkey_settings','Open Settings Dialog:', 's'),
-        ('hotkey_exit',    'Exit Application:', 'q'),
+        ('hotkey_capture',  'Capture & Analyze Screen:', 'z'),
+        ('hotkey_autofill', 'Auto-Fill & Click Answer Choices:', 'f'),
+        ('hotkey_answers',  'Show Latest Question Result:', 'c'),
+        ('hotkey_history',  'View Question History (1..x):', 'h'),
+        ('hotkey_reset',    'Reset Quiz Session History:', 'r'),
+        ('hotkey_settings', 'Open Settings Dialog:', 's'),
+        ('hotkey_exit',     'Exit Application:', 'q'),
     ]
 
     def make_hotkey_formatter(ent):
@@ -1620,8 +1626,43 @@ def show_settings_dialog(
         entry.bind("<KeyRelease>", make_hotkey_formatter(entry))
         hotkey_entries[hk_key] = entry
 
+    # Auto-Fill Configuration Box
+    autofill_box = ttk.LabelFrame(tab_hotkeys, text=" ⚡ Automated Answer Click & Fill (Alt + F) ", padding=10)
+    autofill_box.pack(fill=tk.X, pady=(12, 6))
+
+    enable_autofill_var = tk.BooleanVar(master=dialog, value=settings_manager.get('enable_autofill', True))
+    ttk.Checkbutton(
+        autofill_box,
+        text="Enable Automated Answer Clicking (Captures screen, solves quiz, and clicks choices)",
+        variable=enable_autofill_var
+    ).pack(anchor=tk.W, pady=(2, 6))
+
+    af_opts_row = tk.Frame(autofill_box, bg="#f8fafc")
+    af_opts_row.pack(fill=tk.X, pady=(4, 2))
+
+    tk.Label(af_opts_row, text="Click Delay (ms):", font=("Segoe UI", 9), bg="#f8fafc").pack(side=tk.LEFT, padx=(0, 4))
+    cur_af_delay = settings_manager.get('autofill_click_delay_ms', 200)
+    af_delay_sb = tk.Spinbox(af_opts_row, from_=50, to=1500, increment=50, width=5, font=("Segoe UI", 9))
+    af_delay_sb.delete(0, tk.END)
+    af_delay_sb.insert(0, str(cur_af_delay))
+    af_delay_sb.pack(side=tk.LEFT, padx=(0, 16))
+
+    restore_cursor_var = tk.BooleanVar(master=dialog, value=settings_manager.get('autofill_restore_cursor', True))
+    ttk.Checkbutton(
+        af_opts_row,
+        text="Restore cursor position after clicking",
+        variable=restore_cursor_var
+    ).pack(side=tk.LEFT, padx=(0, 12))
+
+    smooth_move_var = tk.BooleanVar(master=dialog, value=settings_manager.get('autofill_smooth_movement', True))
+    ttk.Checkbutton(
+        af_opts_row,
+        text="Smooth natural mouse movement",
+        variable=smooth_move_var
+    ).pack(side=tk.LEFT)
+
     mouse_box = ttk.LabelFrame(tab_hotkeys, text=" Additional Navigation & Gestures ", padding=10)
-    mouse_box.pack(fill=tk.X, pady=16)
+    mouse_box.pack(fill=tk.X, pady=(8, 16))
 
     enable_mouse_var = tk.BooleanVar(master=dialog, value=settings_manager.get('enable_mouse_gestures', True))
     ttk.Checkbutton(
@@ -1840,6 +1881,13 @@ def show_settings_dialog(
             settings_manager.settings['popup_bg_color'] = bg_color_var.get()
             settings_manager.settings['save_screenshots'] = save_ss_var.get()
             settings_manager.settings['enable_mouse_gestures'] = enable_mouse_var.get()
+            settings_manager.settings['enable_autofill'] = enable_autofill_var.get()
+            try:
+                settings_manager.settings['autofill_click_delay_ms'] = int(af_delay_sb.get().strip())
+            except Exception:
+                pass
+            settings_manager.settings['autofill_restore_cursor'] = restore_cursor_var.get()
+            settings_manager.settings['autofill_smooth_movement'] = smooth_move_var.get()
 
             if save_win_size_btn.winfo_exists() and save_win_size_btn.winfo_ismapped():
                 save_win_size_btn.pack_forget()

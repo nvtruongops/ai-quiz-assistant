@@ -38,6 +38,7 @@ class ScreenshotManager:
         # Create screenshot directory if saving is enabled
         if self.save_screenshots:
             os.makedirs(self.screenshot_dir, exist_ok=True)
+        self.last_capture_bbox: Tuple[int, int, int, int] = (0, 0, 1920, 1080)
     
     def capture_screen(self) -> Optional[Image.Image]:
         """
@@ -57,6 +58,14 @@ class ScreenshotManager:
             # ImageGrab.grab() will capture primary screen by default
             screenshot = ImageGrab.grab()
             
+            if screenshot:
+                self.last_capture_bbox = (
+                    monitor_info.get('x', 0),
+                    monitor_info.get('y', 0),
+                    screenshot.width,
+                    screenshot.height
+                )
+
             if self.logger:
                 self.logger.info("Screenshot captured successfully")
             
@@ -71,6 +80,13 @@ class ScreenshotManager:
             if self.logger:
                 self.logger.error(f"Failed to capture screen: {str(e)}", exc_info=True)
             return None
+
+    def get_last_capture_bbox(self) -> Tuple[int, int, int, int]:
+        """Return (x, y, width, height) of the last captured screenshot"""
+        if hasattr(self, 'last_capture_bbox') and self.last_capture_bbox:
+            return self.last_capture_bbox
+        mon = self.get_primary_monitor()
+        return (mon.get('x', 0), mon.get('y', 0), mon.get('width', 1920), mon.get('height', 1080))
     
     def save_to_memory(self, image: Image.Image, save_to_disk=True) -> Optional[bytes]:
         """

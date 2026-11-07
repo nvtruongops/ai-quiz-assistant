@@ -38,6 +38,12 @@ A high-performance Windows desktop assistant that silently captures exam questio
   - **Zero auto-popups**: Processing runs completely silently in the background. Popups never appear unprompted during an exam.
   - View results only when you choose by pressing `Alt + C` (latest question) or `Alt + H` (full history).
 
+- ⚡ **Automated Screen Recognition & Auto-Fill (`Alt + F`)**:
+  - **End-to-End Hands-Free**: Captures the quiz screen, recognizes questions and options using multimodal spatial coordinates (`normalized [y, x]`), solves the quiz, and automatically guides the mouse cursor to click the correct answer choices.
+  - **Multi-Question & Multi-Select Support**: Seamlessly executes sequential clicks in order for exams containing multiple questions or multi-option checkboxes.
+  - **Human-like Smooth Movement & Cursor Restore**: Configurable cosine ease movement, inter-click delay (default 200ms), and automatic cursor return to its original position upon completion.
+  - **Safety Abort Mechanism**: Can be safely aborted at any moment or disabled entirely in the Settings dialog.
+
 - ⚡ **FIFO Queue & dHash Deduplication**:
   - Rapid successive captures are enqueued into a sequential FIFO worker thread to prevent race conditions.
   - Perceptual image hashing (`dHash` + SHA-256): Re-capturing the same question immediately returns cached answers from RAM without making an external AI call.
@@ -109,6 +115,7 @@ python setup.py --all             # Install dependencies + run setup
 | Shortcut | Action | Description |
 |---|---|---|
 | **Alt + Z** | Capture & Analyze Screen | Silent background capture, extracts single or multiple questions |
+| **Alt + F** | Auto-Fill & Click Answers | Captures screen, solves questions, and moves mouse to click answers |
 | **Alt + C** | Show Latest Question Result | Displays current question with answer and navigation buttons |
 | **Alt + H** | View Question History (1..x) | Displays full sequential session history (questions 1 to N + pending queue) |
 | **Alt + R** | Reset Quiz Session History | Resets in-memory counter back to Question 1 (silent reset) |

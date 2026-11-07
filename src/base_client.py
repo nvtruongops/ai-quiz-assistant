@@ -87,7 +87,7 @@ class BaseAIClient(abc.ABC):
         Handles extracting 1, 2, 3 or more questions visible in the image,
         including single-choice, multi-select (choose 2, 3 or more options), and True/False questions.
         """
-        return """You are an expert AI quiz assistant. Analyze this image and extract ALL multiple-choice questions visible, and solve them accurately.
+        return """You are an expert AI quiz assistant with spatial vision. Analyze this image and extract ALL multiple-choice questions visible, solve them accurately, and find the exact clickable target on screen for each answer choice.
 
 CRITICAL RULES:
 1. Extract EVERY real multiple-choice question in the image (there may be 1, 2, 3 or more questions visible on screen).
@@ -103,6 +103,10 @@ CRITICAL RULES:
      * Single-choice: strictly "<Letter>. <Option Text>" (e.g. "B. Carbon Dioxide", "A. Paris", "B. 56").
      * Multi-select questions (e.g. choose 2 or 3 correct answers / select all that apply): list ALL correct options (e.g. "A, C" or "A. Text 1, C. Text 2" or "A, B, D").
      * True/False questions (Đúng/Sai, True/False): provide the truth value (e.g. "A. Đúng", "B. Sai", "Đúng", "Sai", or for multiple statements: "1-Đúng, 2-Sai, 3-Đúng").
+   - CLICK TARGETS ("clicks"):
+     * Locate the exact clickable target on the screen (the radio button circle, checkbox, or option letter/text) for the correct answer choice.
+     * Provide normalized coordinates [y, x] in range 0 to 1000 (0,0 is top-left, 1000,1000 is bottom-right).
+     * If multi-select, include a click point for every selected choice.
    - Do NOT include any explanations or commentary in this mode.
 
 Return STRICT JSON format:
@@ -111,7 +115,10 @@ Return STRICT JSON format:
     {
       "number": "1",
       "question": "Exact question text here",
-      "answer": "B. Carbon Dioxide"
+      "answer": "B. Carbon Dioxide",
+      "clicks": [
+        {"option": "B", "point": [234, 88]}
+      ]
     }
   ]
 }
@@ -120,10 +127,10 @@ Return ONLY valid JSON, without surrounding markdown or conversational text."""
 
     def _build_mc_explanation_prompt(self) -> str:
         """Prompt template for multiple choice quizzes WITH concise explanation.
-        Handles extracting 1, 2, 3 or more questions with clean answer and separate explanation,
+        Handles extracting 1, 2, 3 or more questions with clean answer, coordinates, and separate explanation,
         including single-choice, multi-select, and True/False questions.
         """
-        return """You are an expert AI academic tutor. Analyze this image and solve ALL multiple-choice questions visible.
+        return """You are an expert AI academic tutor with spatial vision. Analyze this image and solve ALL multiple-choice questions visible, locating click targets for each answer.
 
 CRITICAL RULES:
 1. Extract EVERY real multiple-choice question in the image (there may be 1, 2, 3 or more questions visible on screen).
@@ -138,6 +145,10 @@ CRITICAL RULES:
      * Single-choice: "<Letter>. <Option Text>" (e.g. "B. Carbon Dioxide", "B. 56").
      * Multi-select questions (choose 2 or 3 options): list ALL correct options (e.g. "A, C" or "A. Text 1, C. Text 2").
      * True/False questions (Đúng/Sai, True/False): provide the choice or truth value (e.g. "A. Đúng", "Đúng", "Sai").
+   - CLICK TARGETS ("clicks"):
+     * Locate the exact clickable target on the screen (the radio button circle, checkbox, or option letter/text) for the correct answer choice.
+     * Provide normalized coordinates [y, x] in range 0 to 1000 (0,0 is top-left, 1000,1000 is bottom-right).
+     * If multi-select, include a click point for every selected choice.
    - "explanation": A clear, concise explanation (1-3 sentences) explaining WHY this answer is correct.
 
 Return STRICT JSON format:
@@ -147,6 +158,9 @@ Return STRICT JSON format:
       "number": "1",
       "question": "Exact question text here",
       "answer": "B. Carbon Dioxide",
+      "clicks": [
+        {"option": "B", "point": [234, 88]}
+      ],
       "explanation": "Clear and concise explanation of why this option is correct."
     }
   ]
@@ -331,6 +345,39 @@ Return ONLY valid JSON, without surrounding markdown or commentary."""
             if not final_ans or not final_ans.strip():
                 final_ans = "[Answer not identified]"
 
+            # Parse spatial click targets for auto-fill
+            raw_clicks = q_data.get('clicks', [])
+            clicks = []
+            if isinstance(raw_clicks, list):
+                for c in raw_clicks:
+                    if isinstance(c, dict):
+                        pt = c.get('point') or c.get('click_point') or c.get('coords')
+                        if pt and len(pt) >= 2:
+                            clicks.append({
+                                'option': str(c.get('option', opt_letter)),
+                                'point': [float(pt[0]), float(pt[1])]
+                            })
+                    elif isinstance(c, (list, tuple)) and len(c) >= 2:
+                        clicks.append({
+                            'option': opt_letter,
+                            'point': [float(c[0]), float(c[1])]
+                        })
+            elif 'click_point' in q_data or 'point' in q_data:
+                pt = q_data.get('click_point') or q_data.get('point')
+                if isinstance(pt, (list, tuple)) and len(pt) >= 2:
+                    clicks.append({
+                        'option': opt_letter,
+                        'point': [float(pt[0]), float(pt[1])]
+                    })
+            elif 'box_2d' in q_data and len(q_data['box_2d']) >= 4:
+                b = q_data['box_2d']
+                cy = (float(b[0]) + float(b[2])) / 2.0
+                cx = (float(b[1]) + float(b[3])) / 2.0
+                clicks.append({
+                    'option': opt_letter,
+                    'point': [cy, cx]
+                })
+
             parsed_questions.append(QuizQuestion(
                 number=num,
                 question=q_text,
@@ -338,7 +385,8 @@ Return ONLY valid JSON, without surrounding markdown or commentary."""
                 option_letter=opt_letter,
                 option_text=opt_text,
                 exam_number=num,
-                explanation=explanation
+                explanation=explanation,
+                clicks=clicks
             ))
 
         if not parsed_questions:

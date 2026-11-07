@@ -29,6 +29,7 @@ class QuizQuestion:
     option_text: str = ""
     exam_number: str = ""
     explanation: str = ""
+    clicks: List[dict] = field(default_factory=list)
 
     def __getitem__(self, key):
         return getattr(self, key)

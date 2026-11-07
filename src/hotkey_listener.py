@@ -20,6 +20,7 @@ class HotkeyListener:
         'reset': 'r',
         'settings': 's',
         'exit': 'q',
+        'autofill': 'f',
     }
 
     def __init__(
@@ -34,6 +35,7 @@ class HotkeyListener:
         on_setup: Callable[[], None] = None,
         settings_manager=None,
         on_check_key: Optional[Callable] = None,
+        on_autofill_key: Optional[Callable[[], None]] = None,
         **kwargs
     ):
         self.on_capture_key = on_capture_key
@@ -44,6 +46,7 @@ class HotkeyListener:
         self.on_show_detailed_history = on_show_detailed_history
         self.on_reset_answers = on_reset_answers
         self.on_setup = on_setup
+        self.on_autofill_key = on_autofill_key
         self.settings_manager = settings_manager
 
         self.hotkeys = self._load_hotkeys()
@@ -63,7 +66,7 @@ class HotkeyListener:
         """Load hotkeys from settings or use defaults, strictly normalized to lowercase"""
         hotkeys = self.DEFAULT_HOTKEYS.copy()
         if self.settings_manager:
-            for k in ('capture', 'answers', 'history', 'reset', 'settings', 'exit'):
+            for k in ('capture', 'answers', 'history', 'reset', 'settings', 'exit', 'autofill'):
                 raw = self.settings_manager.get(f'hotkey_{k}', self.DEFAULT_HOTKEYS.get(k, ''))
                 hotkeys[k] = str(raw).strip().lower() if raw else self.DEFAULT_HOTKEYS.get(k, '')
         return hotkeys
@@ -181,8 +184,9 @@ class HotkeyListener:
             rst_key = self.hotkeys.get('reset', 'r')
             set_key = self.hotkeys.get('settings', 's')
             ext_key = self.hotkeys.get('exit', 'q')
+            fil_key = self.hotkeys.get('autofill', 'f')
 
-            cooldown = 0.2 if char == cap_key else self._hotkey_cooldown
+            cooldown = 0.2 if char in (cap_key, fil_key) else self._hotkey_cooldown
             last_time = self._last_hotkey_time.get(char, 0.0)
             if now - last_time < cooldown:
                 return
@@ -191,6 +195,10 @@ class HotkeyListener:
             if char == cap_key:
                 self.logger.info(f"Capture hotkey (Alt+{char.upper()}) pressed")
                 self.on_capture_key()
+            elif char == fil_key:
+                self.logger.info(f"Auto-fill hotkey (Alt+{char.upper()}) pressed")
+                if self.on_autofill_key:
+                    self.on_autofill_key()
             elif char == ans_key:
                 self.logger.info(f"Show answers hotkey (Alt+{char.upper()}) pressed")
                 if self.on_show_answers:

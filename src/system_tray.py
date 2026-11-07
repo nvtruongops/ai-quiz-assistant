@@ -129,6 +129,7 @@ class SystemTray:
             provider_name = "Google Gemini" if provider == 'gemini' else "Custom Local"
 
         hk_c = "Z"
+        hk_f = "F"
         hk_ans = "C"
         hk_h = "H"
         hk_s = "S"
@@ -143,6 +144,7 @@ class SystemTray:
                 mode_name = "Multiple Choice"
 
             hk_c = self.app.settings_manager.get('hotkey_capture', 'z').upper()
+            hk_f = self.app.settings_manager.get('hotkey_autofill', 'f').upper()
             hk_ans = self.app.settings_manager.get('hotkey_answers', 'c').upper()
             hk_h = self.app.settings_manager.get('hotkey_history', 'h').upper()
             hk_s = self.app.settings_manager.get('hotkey_settings', 's').upper()
@@ -183,6 +185,7 @@ class SystemTray:
             pystray.MenuItem(f"📝 Mode: {mode_name}", lambda: None, enabled=False),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(f"📸 Capture Screen (Alt+{hk_c})", trigger(self.app.on_capture_hotkey)),
+            pystray.MenuItem(f"⚡ Auto-Fill Answers (Alt+{hk_f})", trigger(getattr(self.app, 'on_autofill_hotkey', lambda: None))),
             pystray.MenuItem(f"🎯 Show Latest Result (Alt+{hk_ans})", trigger(self.app.on_show_answers_hotkey)),
             pystray.MenuItem(f"📖 Detailed History (Alt+{hk_h})", trigger(self.app.on_show_detailed_history_hotkey)),
             pystray.Menu.SEPARATOR,
