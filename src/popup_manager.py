@@ -99,6 +99,7 @@ class PopupManager:
     ):
         self.config = config_manager
         self.settings = settings_manager or settings
+        self.settings_manager = settings_manager or (self.settings if hasattr(self.settings, 'save_settings') else None)
         self.on_nav_prev = on_prev
         self.on_nav_next = on_next
         self.on_nav_reload = on_reload
@@ -744,28 +745,28 @@ class PopupManager:
         def on_save_size_clicked(e=None):
             cur_w = popup.winfo_width()
             cur_h = popup.winfo_height()
-            if is_history:
-                if self.settings is not None:
-                    self.settings['history_popup_width'] = cur_w
-                    self.settings['history_popup_height'] = cur_h
-                if self.settings_manager:
-                    self.settings_manager.set('history_popup_width', cur_w)
-                    self.settings_manager.set('history_popup_height', cur_h)
-                    self.settings_manager.save_settings()
-            else:
-                if self.settings is not None:
-                    self.settings['popup_width'] = cur_w
-                    self.settings['popup_height'] = cur_h
-                if self.settings_manager:
-                    self.settings_manager.set('popup_width', cur_w)
-                    self.settings_manager.set('popup_height', cur_h)
-                    self.settings_manager.save_settings()
+            w_key = 'history_popup_width' if is_history else 'popup_width'
+            h_key = 'history_popup_height' if is_history else 'popup_height'
+
+            sm = getattr(self, 'settings_manager', None) or (self.settings if hasattr(self.settings, 'set') else None)
+            if sm is not None:
+                sm.set(w_key, cur_w)
+                sm.set(h_key, cur_h)
+                if hasattr(sm, 'save_settings'):
+                    try:
+                        sm.save_settings()
+                    except Exception:
+                        pass
+            elif isinstance(self.settings, dict):
+                self.settings[w_key] = cur_w
+                self.settings[h_key] = cur_h
 
             nonlocal saved_w, saved_h
             saved_w = cur_w
             saved_h = cur_h
             save_size_btn.config(text="✓ Saved!", bg="#10b981", fg="#ffffff")
             popup.after(1400, lambda: save_size_btn.pack_forget() if save_size_btn.winfo_exists() and abs(popup.winfo_width() - saved_w) <= 15 and abs(popup.winfo_height() - saved_h) <= 15 else None)
+            return "break"
 
         save_size_btn.bind("<Button-1>", on_save_size_clicked)
 

@@ -161,6 +161,23 @@ class SettingsManager:
         self.settings[key] = value
         self.save_settings()
 
+    def __getitem__(self, key: str) -> Any:
+        """Allow dict-like item access: settings[key]"""
+        return self.settings[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        """Allow dict-like item assignment: settings[key] = value"""
+        self.settings[key] = value
+        self.save_settings()
+
+    def __contains__(self, key: str) -> bool:
+        """Allow 'key in settings' checks"""
+        return key in self.settings
+
+    def __iter__(self):
+        """Allow iterating over keys"""
+        return iter(self.settings)
+
 
 def _create_card_selector(parent, options, current_val, on_change=None):
     """

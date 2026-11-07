@@ -221,6 +221,55 @@ class TestScalingAndFolderOpening(unittest.TestCase):
         self.assertIn('12', verified.get('spinbox_vals', []))
         self.assertIn('540', verified.get('spinbox_vals', []))
 
+    def test_save_size_click_with_settings_manager(self):
+        """Verify clicking Save Size button does not raise TypeError with SettingsManager"""
+        # Ensure SettingsManager supports item assignment directly
+        self.settings_manager['popup_width'] = 450
+        self.assertEqual(self.settings_manager['popup_width'], 450)
+        self.assertEqual(self.settings_manager.get('popup_width'), 450)
+
+        popup_mgr = PopupManager(settings_manager=self.settings_manager)
+        self.assertTrue(popup_mgr.tk_ready.wait(3.0))
+
+        popup_mgr.show(
+            title="Question 1/1",
+            content="Question 1: Sample Question\n→ Answer: Sample Answer",
+            provider="Custom",
+            mode="multiple_choice"
+        )
+
+        for _ in range(40):
+            if popup_mgr.current_popup and popup_mgr.is_visible():
+                break
+            time.sleep(0.05)
+
+        popup = popup_mgr.current_popup
+        self.assertIsNotNone(popup)
+
+        # Find save_size_btn
+        def find_save_btn(w):
+            if isinstance(w, tk.Label) and "Save Size" in w.cget('text'):
+                return w
+            for c in w.winfo_children():
+                res = find_save_btn(c)
+                if res:
+                    return res
+            return None
+
+        btn = find_save_btn(popup)
+        self.assertIsNotNone(btn, "Save Size button not found in popup header")
+
+        # Simulate clicking the Save Size button
+        btn.event_generate("<Button-1>")
+        time.sleep(0.1)
+
+        # Verify no TypeError was thrown and dimensions were updated
+        self.assertEqual(self.settings_manager.get('popup_width'), popup.winfo_width())
+        self.assertEqual(self.settings_manager['popup_width'], popup.winfo_width())
+
+        popup_mgr.hide()
+        popup_mgr.close()
+
 
 if __name__ == '__main__':
     unittest.main()
