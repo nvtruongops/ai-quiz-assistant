@@ -20,26 +20,82 @@ def get_popup_theme(bg_hex: str = "#ffffff") -> dict:
     Supports special 'stealth' / 'ghost' preset for borderless, low-contrast ghost UI.
     """
     bg_clean = (bg_hex or '#ffffff').strip().lower()
-    if bg_clean in ('stealth', '#stealth', 'ghost', '#ghost'):
-        return {
-            'bg': '#ffffff',
-            'header_bg': '#ffffff',
-            'border': '#ffffff',
-            'text': '#71717a',            # subtle muted slate gray
-            'question': '#71717a',        # subtle muted gray (no bold)
-            'answer': '#52525b',          # subtle gray-charcoal (no bold)
-            'badge_bg': '#ffffff',
-            'badge_fg': '#a1a1aa',
-            'accent': '#94a3b8',
-            'close_fg': '#a1a1aa',        # muted gray X (not bright red)
-            'copy_fg': '#a1a1aa',         # muted gray Copy
-            'exp_box_bg': '#ffffff',
-            'exp_box_fg': '#71717a',
-            'exp_btn_bg': '#ffffff',
-            'exp_btn_fg': '#94a3b8',
-            'is_light': True,
-            'is_stealth': True
-        }
+    is_stealth_req = (
+        bg_clean in ('stealth', '#stealth', 'ghost', '#ghost')
+        or bg_clean.startswith('stealth:')
+        or bg_clean.startswith('ghost:')
+    )
+    if is_stealth_req:
+        custom_stealth_bg = '#ffffff'
+        if ':' in bg_clean:
+            part = bg_clean.split(':', 1)[1].strip()
+            if part.startswith('#'):
+                part = part[1:]
+            if len(part) == 6:
+                try:
+                    int(part, 16)
+                    custom_stealth_bg = f"#{part}"
+                except ValueError:
+                    custom_stealth_bg = '#ffffff'
+            elif len(part) == 3:
+                try:
+                    int(part, 16)
+                    custom_stealth_bg = f"#{part[0]*2}{part[1]*2}{part[2]*2}"
+                except ValueError:
+                    custom_stealth_bg = '#ffffff'
+
+        h_c = custom_stealth_bg.lstrip('#')
+        try:
+            sr = int(h_c[0:2], 16)
+            sg = int(h_c[2:4], 16)
+            sb = int(h_c[4:6], 16)
+            lum = (0.299 * sr + 0.587 * sg + 0.114 * sb)
+        except Exception:
+            lum = 255
+            custom_stealth_bg = '#ffffff'
+
+        if lum > 128:
+            # Light stealth camouflage
+            return {
+                'bg': custom_stealth_bg,
+                'header_bg': custom_stealth_bg,
+                'border': custom_stealth_bg,
+                'text': '#71717a',            # subtle muted slate gray
+                'question': '#71717a',        # subtle muted gray (no bold)
+                'answer': '#52525b',          # subtle gray-charcoal (no bold)
+                'badge_bg': custom_stealth_bg,
+                'badge_fg': '#a1a1aa',
+                'accent': '#94a3b8',
+                'close_fg': '#a1a1aa',        # muted gray X (not bright red)
+                'copy_fg': '#a1a1aa',         # muted gray Copy
+                'exp_box_bg': custom_stealth_bg,
+                'exp_box_fg': '#71717a',
+                'exp_btn_bg': custom_stealth_bg,
+                'exp_btn_fg': '#94a3b8',
+                'is_light': True,
+                'is_stealth': True
+            }
+        else:
+            # Dark stealth camouflage
+            return {
+                'bg': custom_stealth_bg,
+                'header_bg': custom_stealth_bg,
+                'border': custom_stealth_bg,
+                'text': '#a1a1aa',            # muted light gray
+                'question': '#a1a1aa',        # muted gray (no bold)
+                'answer': '#d4d4d8',          # soft muted white/gray (no bold)
+                'badge_bg': custom_stealth_bg,
+                'badge_fg': '#71717a',
+                'accent': '#94a3b8',
+                'close_fg': '#71717a',        # muted gray X
+                'copy_fg': '#71717a',         # muted gray Copy
+                'exp_box_bg': custom_stealth_bg,
+                'exp_box_fg': '#a1a1aa',
+                'exp_btn_bg': custom_stealth_bg,
+                'exp_btn_fg': '#71717a',
+                'is_light': False,
+                'is_stealth': True
+            }
 
     bg_clean = bg_clean.lstrip('#')
     if len(bg_clean) != 6:

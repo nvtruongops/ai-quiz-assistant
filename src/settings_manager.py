@@ -1351,7 +1351,15 @@ def show_settings_dialog(
     color_box.pack(fill=tk.X, pady=(0, 10))
 
     cur_bg_color = settings_manager.get('popup_bg_color', '#ffffff')
-    is_initial_stealth = str(cur_bg_color).strip().lower() in ('stealth', '#stealth', 'ghost', '#ghost')
+    is_initial_stealth = str(cur_bg_color).strip().lower().startswith(('stealth', '#stealth', 'ghost', '#ghost'))
+    initial_stealth_hex = '#ffffff'
+    if is_initial_stealth and ':' in str(cur_bg_color):
+        p = str(cur_bg_color).split(':', 1)[1].strip()
+        if p.startswith('#') and len(p) in (4, 7):
+            initial_stealth_hex = p
+        elif not p.startswith('#') and len(p) in (3, 6):
+            initial_stealth_hex = f"#{p}"
+
     bg_color_var = tk.StringVar(master=dialog, value=cur_bg_color)
 
     tk.Label(
@@ -1366,18 +1374,22 @@ def show_settings_dialog(
     ctrl_row = tk.Frame(color_box, bg="#ffffff", bd=1, relief=tk.SOLID, padx=8, pady=8)
     ctrl_row.pack(fill=tk.X, pady=(0, 8))
 
-    initial_chip_bg = '#ffffff'
+    initial_chip_bg = initial_stealth_hex if is_initial_stealth else '#ffffff'
     if not is_initial_stealth and str(cur_bg_color).startswith('#') and len(str(cur_bg_color)) in (4, 7):
         initial_chip_bg = cur_bg_color
 
-    color_chip = tk.Frame(ctrl_row, width=32, height=32, bg=initial_chip_bg, bd=1, relief=tk.SOLID)
+    color_chip = tk.Frame(ctrl_row, width=32, height=32, bg=initial_chip_bg, bd=1, relief=tk.SOLID, cursor="hand2")
     color_chip.pack(side=tk.LEFT, padx=(0, 8))
     color_chip.pack_propagate(False)
+
+    chip_icon = tk.Label(color_chip, text="🎯", font=("Segoe UI", 11), bg=initial_chip_bg, fg="#0284c7", cursor="hand2")
+    if is_initial_stealth:
+        chip_icon.pack(expand=True)
 
     code_box = tk.Frame(ctrl_row, bg="#ffffff")
     code_box.pack(side=tk.LEFT, padx=(0, 12))
 
-    init_code_text = "Color Code: 👻 STEALTH (Ghost UI)" if is_initial_stealth else f"Color Code: {str(cur_bg_color).upper()}"
+    init_code_text = f"Color Code: 👻 STEALTH ({initial_stealth_hex.upper()})" if is_initial_stealth else f"Color Code: {str(cur_bg_color).upper()}"
     color_val_lbl = tk.Label(code_box, text=init_code_text, font=("Consolas", 10, "bold"), bg="#ffffff", fg="#0f172a")
     color_val_lbl.pack(anchor=tk.W)
 
@@ -1386,24 +1398,40 @@ def show_settings_dialog(
 
     def update_color_ui(new_color: str):
         new_color = (new_color or "#ffffff").strip()
-        is_stealth = new_color.lower() in ('stealth', '#stealth', 'ghost', '#ghost')
-        if not is_stealth and not new_color.startswith('#'):
-            new_color = f"#{new_color}"
-        bg_color_var.set(new_color)
+        is_stealth = new_color.lower().startswith(('stealth', '#stealth', 'ghost', '#ghost'))
+        stealth_hex = '#ffffff'
+        if is_stealth:
+            if ':' in new_color:
+                part = new_color.split(':', 1)[1].strip()
+                if part.startswith('#') and len(part) in (4, 7):
+                    stealth_hex = part
+                elif not part.startswith('#') and len(part) in (3, 6):
+                    stealth_hex = f"#{part}"
+            bg_color_var.set(f"stealth:{stealth_hex}")
+        else:
+            if not new_color.startswith('#'):
+                new_color = f"#{new_color}"
+            bg_color_var.set(new_color)
 
         try:
             try:
                 from popup_manager import get_popup_theme
             except ImportError:
                 from src.popup_manager import get_popup_theme
-            theme = get_popup_theme(new_color)
+            theme = get_popup_theme(bg_color_var.get())
         except Exception:
-            theme = {'is_light': True, 'text': '#0f172a', 'bg': '#ffffff' if is_stealth else new_color, 'header_bg': '#f1f5f9', 'border': '#cbd5e1', 'question': '#0369a1', 'answer': '#15803d', 'badge_bg': '#e2e8f0', 'badge_fg': '#334155', 'close_fg': '#dc2626', 'copy_fg': '#1e293b'}
+            theme = {'is_light': True, 'text': '#0f172a', 'bg': stealth_hex if is_stealth else new_color, 'header_bg': stealth_hex if is_stealth else '#f1f5f9', 'border': stealth_hex if is_stealth else '#cbd5e1', 'question': '#71717a' if is_stealth else '#0369a1', 'answer': '#52525b' if is_stealth else '#15803d', 'badge_bg': '#e2e8f0', 'badge_fg': '#334155', 'close_fg': '#a1a1aa' if is_stealth else '#dc2626', 'copy_fg': '#a1a1aa' if is_stealth else '#1e293b', 'is_stealth': is_stealth}
 
         if is_stealth:
-            color_chip.config(bg="#ffffff")
-            color_val_lbl.config(text="Color Code: 👻 STEALTH (Ghost UI)")
-            status_badge.config(text="👻 Stealth / Ghost (Borderless, Muted Gray, Non-bold)", bg="#f4f4f5", fg="#52525b")
+            color_chip.config(bg=stealth_hex, cursor="hand2")
+            chip_icon.config(text="🎯", bg=stealth_hex, fg="#0284c7")
+            chip_icon.pack(expand=True)
+            color_val_lbl.config(text=f"Color Code: 👻 STEALTH ({stealth_hex.upper()})")
+            status_badge.config(
+                text=f"👻 Stealth Active: Borderless, Muted Non-bold Text ({stealth_hex.upper()})",
+                bg="#f4f4f5",
+                fg="#52525b"
+            )
             try:
                 # Auto-adjust font size to 8 for stealth
                 font_sb.delete(0, tk.END)
@@ -1412,11 +1440,12 @@ def show_settings_dialog(
             except Exception:
                 pass
         else:
+            chip_icon.pack_forget()
             safe_chip_bg = new_color if (new_color.startswith('#') and len(new_color) in (4, 7)) else '#ffffff'
             try:
-                color_chip.config(bg=safe_chip_bg)
+                color_chip.config(bg=safe_chip_bg, cursor="")
             except Exception:
-                color_chip.config(bg='#ffffff')
+                color_chip.config(bg='#ffffff', cursor="")
             color_val_lbl.config(text=f"Color Code: {new_color.upper()}")
             if theme.get('is_light', True):
                 status_badge.config(text="⚪ Light Theme (Dark Text)", bg="#dbeafe", fg="#1e40af")
@@ -1481,15 +1510,34 @@ def show_settings_dialog(
         )
 
     def do_eyedropper():
-        pick_color_at_cursor(dialog, update_color_ui)
+        def on_color_picked(c_hex):
+            cur = bg_color_var.get().strip().lower()
+            if cur.startswith(('stealth', '#stealth', 'ghost', '#ghost')):
+                update_color_ui(f"stealth:{c_hex}")
+            else:
+                update_color_ui(c_hex)
+        pick_color_at_cursor(dialog, on_color_picked)
 
     def do_palette():
-        init_c = bg_color_var.get()
-        if not init_c or not init_c.startswith('#') or len(init_c) not in (4, 7):
-            init_c = "#ffffff"
+        cur = bg_color_var.get().strip().lower()
+        is_cur_st = cur.startswith(('stealth', '#stealth', 'ghost', '#ghost'))
+        init_c = "#ffffff"
+        if ':' in cur:
+            part = cur.split(':', 1)[1].strip()
+            if part.startswith('#') and len(part) in (4, 7):
+                init_c = part
+        elif not is_cur_st and cur.startswith('#') and len(cur) in (4, 7):
+            init_c = cur
+
         chosen = colorchooser.askcolor(color=init_c, parent=dialog, title="Select HUD Background Color")[1]
         if chosen:
-            update_color_ui(chosen)
+            if is_cur_st:
+                update_color_ui(f"stealth:{chosen}")
+            else:
+                update_color_ui(chosen)
+
+    color_chip.bind("<Button-1>", lambda e: do_eyedropper())
+    chip_icon.bind("<Button-1>", lambda e: do_eyedropper())
 
     tk.Button(
         ctrl_row,
@@ -1529,11 +1577,25 @@ def show_settings_dialog(
         ("🌊 Blue", "#e0f2fe"),
         ("🌑 Dark", "#1e1e2e")
     ]
+
+    def apply_preset(p_hex):
+        if p_hex == 'stealth':
+            cur = bg_color_var.get().strip().lower()
+            if ':' in cur:
+                part = cur.split(':', 1)[1].strip()
+                update_color_ui(f"stealth:{part}")
+            elif cur.startswith('#') and len(cur) in (4, 7) and cur != '#ffffff':
+                update_color_ui(f"stealth:{cur}")
+            else:
+                update_color_ui("stealth:#ffffff")
+        else:
+            update_color_ui(p_hex)
+
     for p_name, p_hex in presets:
         tk.Button(
             preset_row,
             text=p_name,
-            command=lambda h=p_hex: update_color_ui(h),
+            command=lambda h=p_hex: apply_preset(h),
             font=("Segoe UI", 8),
             bg="#f8fafc",
             fg="#1e293b",

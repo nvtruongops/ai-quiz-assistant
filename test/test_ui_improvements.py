@@ -167,6 +167,28 @@ class TestUIImprovements(unittest.TestCase):
             # Must not raise _tkinter.TclError: unknown color name "stealth"
             show_settings_dialog(sm)
 
+    def test_popup_theme_stealth_custom_colors(self):
+        """Verify stealth theme supports custom sampled background colors while maintaining camouflage"""
+        # 1. Custom light stealth color
+        theme_light = get_popup_theme("stealth:#f4f4f5")
+        self.assertTrue(theme_light['is_stealth'])
+        self.assertTrue(theme_light['is_light'])
+        self.assertEqual(theme_light['bg'], '#f4f4f5')
+        self.assertEqual(theme_light['header_bg'], '#f4f4f5')
+        self.assertEqual(theme_light['border'], '#f4f4f5')
+        self.assertEqual(theme_light['question'], '#71717a')
+        self.assertEqual(theme_light['answer'], '#52525b')
+
+        # 2. Custom dark stealth color
+        theme_dark = get_popup_theme("stealth:#1e1e2e")
+        self.assertTrue(theme_dark['is_stealth'])
+        self.assertFalse(theme_dark['is_light'])
+        self.assertEqual(theme_dark['bg'], '#1e1e2e')
+        self.assertEqual(theme_dark['header_bg'], '#1e1e2e')
+        self.assertEqual(theme_dark['border'], '#1e1e2e')
+        self.assertEqual(theme_dark['question'], '#a1a1aa')
+        self.assertEqual(theme_dark['answer'], '#d4d4d8')
+
 
 if __name__ == '__main__':
     unittest.main()
