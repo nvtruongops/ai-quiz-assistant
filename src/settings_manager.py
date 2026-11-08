@@ -35,7 +35,7 @@ DEFAULT_SETTINGS = {
     'gemini_model': '',
     # Hotkey combinations (Alt + key)
     'hotkey_capture': 'z',
-    'hotkey_autofill': 'f',
+    'hotkey_autofill': 'x',
     'hotkey_answers': 'c',
     'hotkey_history': 'h',
     'hotkey_reset': 'r',
@@ -1728,7 +1728,7 @@ def show_settings_dialog(
     hotkey_entries = {}
     hotkey_defs = [
         ('hotkey_capture',  'Capture & Analyze Screen:', 'z'),
-        ('hotkey_autofill', 'Auto-Fill & Click Answer Choices:', 'f'),
+        ('hotkey_autofill', 'Auto-Fill & Click Answer Choices:', 'x'),
         ('hotkey_answers',  'Show Latest Question Result:', 'c'),
         ('hotkey_history',  'View Question History (1..x):', 'h'),
         ('hotkey_reset',    'Reset Quiz Session History:', 'r'),
@@ -1758,7 +1758,7 @@ def show_settings_dialog(
         hotkey_entries[hk_key] = entry
 
     # Auto-Fill Configuration Box
-    autofill_box = ttk.LabelFrame(tab_hotkeys, text=" ⚡ Automated Answer Click & Fill (Alt + F) ", padding=10)
+    autofill_box = ttk.LabelFrame(tab_hotkeys, text=" ⚡ Automated Answer Click & Fill (Alt + X) ", padding=10)
     autofill_box.pack(fill=tk.X, pady=(12, 6))
 
     enable_autofill_var = tk.BooleanVar(master=dialog, value=settings_manager.get('enable_autofill', True))

@@ -20,7 +20,7 @@ class HotkeyListener:
         'reset': 'r',
         'settings': 's',
         'exit': 'q',
-        'autofill': 'f',
+        'autofill': 'x',
     }
 
     def __init__(

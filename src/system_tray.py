@@ -144,7 +144,7 @@ class SystemTray:
                 mode_name = "Multiple Choice"
 
             hk_c = self.app.settings_manager.get('hotkey_capture', 'z').upper()
-            hk_f = self.app.settings_manager.get('hotkey_autofill', 'f').upper()
+            hk_f = self.app.settings_manager.get('hotkey_autofill', 'x').upper()
             hk_ans = self.app.settings_manager.get('hotkey_answers', 'c').upper()
             hk_h = self.app.settings_manager.get('hotkey_history', 'h').upper()
             hk_s = self.app.settings_manager.get('hotkey_settings', 's').upper()

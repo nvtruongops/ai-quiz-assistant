@@ -119,10 +119,10 @@ class TestNewFeaturesAndFixes(unittest.TestCase):
         self.assertEqual(res_letter.questions[2].answer, "Đúng")
         self.assertEqual(res_full.questions[2].answer, "Đúng")
 
-    def test_alt_x_completely_removed(self):
-        """Verify Alt+X is removed from hotkeys listener defaults"""
+    def test_legacy_results_completely_removed(self):
+        """Verify legacy 'results' key is removed and 'autofill' is assigned 'x'"""
         self.assertNotIn('results', HotkeyListener.DEFAULT_HOTKEYS)
-        self.assertNotIn('x', HotkeyListener.DEFAULT_HOTKEYS.values())
+        self.assertEqual(HotkeyListener.DEFAULT_HOTKEYS['autofill'], 'x')
 
     @patch('main.SystemTray')
     @patch('main.PopupManager')

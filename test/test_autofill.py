@@ -45,7 +45,7 @@ class TestAutoFillManager(unittest.TestCase):
             'autofill_click_delay_ms': 50,
             'autofill_restore_cursor': True,
             'autofill_smooth_movement': False,  # set to False in tests for fast direct jumps
-            'hotkey_autofill': 'f'
+            'hotkey_autofill': 'x'
         }.get(k, d)
 
         self.manager = AutoFillManager(

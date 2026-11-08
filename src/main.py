@@ -266,7 +266,7 @@ class QuizAssistantApp:
             provider = self.config_manager.get('API_PROVIDER', 'gemini')
             p_text = "Google Gemini" if provider == 'gemini' else "Custom Local"
             hk_cap = self.settings_manager.get('hotkey_capture', 'z').upper()
-            hk_fill = self.settings_manager.get('hotkey_autofill', 'f').upper()
+            hk_fill = self.settings_manager.get('hotkey_autofill', 'x').upper()
             hk_ans = self.settings_manager.get('hotkey_answers', 'c').upper()
             hk_his = self.settings_manager.get('hotkey_history', 'h').upper()
             self.system_tray.show_notification(
@@ -341,7 +341,7 @@ class QuizAssistantApp:
 
     def on_autofill_hotkey(self):
         """
-        Handle Auto-Fill hotkey (Alt+F)
+        Handle Auto-Fill hotkey (Alt+X)
         Captures screen, solves questions via AI, and automatically navigates cursor to click answer choices.
         """
         if hasattr(self, 'autofill_manager') and not self.autofill_manager.is_enabled():
@@ -354,7 +354,7 @@ class QuizAssistantApp:
             return
         self._last_capture_time = now
 
-        self.logger.info("⚡ Auto-fill hotkey triggered (Alt+F)")
+        self.logger.info("⚡ Auto-fill hotkey triggered (Alt+X)")
 
         # Hide any open popup
         if self.popup_manager.is_visible():

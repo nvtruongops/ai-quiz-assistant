@@ -38,7 +38,7 @@ A high-performance Windows desktop assistant that silently captures exam questio
   - **Zero auto-popups**: Processing runs completely silently in the background. Popups never appear unprompted during an exam.
   - View results only when you choose by pressing `Alt + C` (latest question) or `Alt + H` (full history).
 
-- ⚡ **Automated Screen Recognition & Auto-Fill (`Alt + F`)**:
+- ⚡ **Automated Screen Recognition & Auto-Fill (`Alt + X`)**:
   - **End-to-End Hands-Free**: Captures the quiz screen, recognizes questions and options using multimodal spatial coordinates (`normalized [y, x]`), solves the quiz, and automatically guides the mouse cursor to click the correct answer choices.
   - **Multi-Question & Multi-Select Support**: Seamlessly executes sequential clicks in order for exams containing multiple questions or multi-option checkboxes.
   - **Human-like Smooth Movement & Cursor Restore**: Configurable cosine ease movement, inter-click delay (default 200ms), and automatic cursor return to its original position upon completion.
@@ -62,7 +62,7 @@ A high-performance Windows desktop assistant that silently captures exam questio
   - Frameless, draggable, mouse-wheel scrollable, with configurable window width, font size, and opacity (50% - 100%).
 
 - ⌨️ **Fully Configurable Shortcuts**:
-  - All hotkeys (`Alt + [Z/C/H/R/S/Q]`) are fully remappable from Settings without hardcoded locks.
+  - All hotkeys (`Alt + [Z/X/C/H/R/S/Q]`) are fully remappable from Settings without hardcoded locks.
   - Toggleable middle-mouse scroll gestures.
 
 - 📁 **Complete Privacy, Safe Data Management & System Tray Quick-Access**:
@@ -116,7 +116,7 @@ python setup.py --all             # Install dependencies + run setup
 | Shortcut | Action | Description |
 |---|---|---|
 | **Alt + Z** | Capture & Analyze Screen | Silent background capture, extracts single or multiple questions |
-| **Alt + F** | Auto-Fill & Click Answers | Captures screen, solves questions, and moves mouse to click answers |
+| **Alt + X** | Auto-Fill & Click Answers | Captures screen, solves questions, and moves mouse to click answers |
 | **Alt + C** | Show Latest Question Result | Displays current question with answer and navigation buttons |
 | **Alt + H** | View Question History (1..x) | Displays full sequential session history (questions 1 to N + pending queue) |
 | **Alt + R** | Reset Quiz Session History | Resets in-memory counter back to Question 1 (silent reset) |
