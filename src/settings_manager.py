@@ -454,7 +454,7 @@ def show_initial_setup_dialog(
 
     sub_title_lbl = tk.Label(
         title_box,
-        text="Step 1/3: 🤖 Configure AI Provider (or Skip to explore first)",
+        text="Step 1/3: 🤖 Configure AI Provider",
         font=("Segoe UI", 9),
         fg="#94a3b8",
         bg="#1e293b"
@@ -503,8 +503,8 @@ def show_initial_setup_dialog(
     ).pack(anchor=tk.W, pady=(0, 6))
 
     prov_options = [
-        ("gemini", "Google Gemini AI Studio (Cloud)", "Free, ultra-fast vision analysis (~1.4s), high quality multimodal reasoning from Google."),
-        ("custom", "Custom Local / Proxy (OpenAI-compatible)", "Compatible with Ollama, vLLM, LM Studio, Claude Proxy, or OpenAI-format endpoints.")
+        ("gemini", "Google Gemini AI Studio", "Free, ultra-fast vision analysis (~1.4s), high quality multimodal reasoning from Google."),
+        ("custom", "Custom Local or Proxy Endpoint", "Compatible with Ollama, vLLM, LM Studio, Claude Proxy, or OpenAI-format endpoints.")
     ]
     provider_var, _ = _create_card_selector(step1_frame, prov_options, cur_provider if cur_provider in ['gemini', 'custom'] else 'gemini')
 
@@ -775,7 +775,7 @@ def show_initial_setup_dialog(
     # ========================================================
     tk.Label(
         step2_frame,
-        text="Select Floating HUD Card Style (Exam Result Overlay):",
+        text="Select Floating HUD Card Style:",
         font=("Segoe UI", 10, "bold")
     ).pack(anchor=tk.W, pady=(0, 2))
     tk.Label(
@@ -794,12 +794,12 @@ def show_initial_setup_dialog(
         cur_theme_init = '#ffffff'
 
     theme_options = [
-        ("stealth", "👻 Stealth (Tàng hình)", "Ghost card matching screen, borderless, muted non-bold text."),
-        ("#ffffff", "⚪ Pure White (Trắng sáng)", "Clean pure white, subtle border, high-contrast dark text."),
-        ("#1e1e2e", "🌙 Dark Mode (Tối dịu mắt)", "Catppuccin Mocha dark theme with crisp white text."),
-        ("#fef9c3", "🍦 Warm Cream (Vàng kem)", "Warm cream tone, reduces eye strain during long tests."),
-        ("#e0f2fe", "🔵 Soft Blue (Xanh dịu)", "Pastel blue background, modern and elegant aesthetic."),
-        ("#f8fafc", "🌫️ Modern Gray (Xám nhạt)", "Neutral light gray minimalist theme, professional look.")
+        ("stealth", "👻 Stealth", "Ghost card matching screen, borderless, muted non-bold text."),
+        ("#ffffff", "⚪ Pure White", "Clean pure white, subtle border, high-contrast dark text."),
+        ("#1e1e2e", "🌙 Dark Mode", "Catppuccin Mocha dark theme with crisp white text."),
+        ("#fef9c3", "🍦 Warm Cream", "Warm cream tone, reduces eye strain during long tests."),
+        ("#e0f2fe", "🔵 Soft Blue", "Pastel blue background, modern and elegant aesthetic."),
+        ("#f8fafc", "🌫️ Modern Gray", "Neutral light gray minimalist theme, professional look.")
     ]
 
     selected_theme_var = tk.StringVar(value=cur_theme_init)
@@ -832,7 +832,7 @@ def show_initial_setup_dialog(
 
     preview_box = tk.LabelFrame(
         step2_frame,
-        text=" 👁️ Live HUD Card Preview (Desktop Background Simulation) ",
+        text=" 👁️ Live HUD Card Preview ",
         font=("Segoe UI", 9, "bold"),
         padx=10,
         pady=6,
@@ -861,7 +861,7 @@ def show_initial_setup_dialog(
 
     preview_q = tk.Label(
         preview_body,
-        text="Question 1: Which country do the Paracel (Hoàng Sa) and Spratly (Trường Sa) Islands belong to?",
+        text="Question 1: Which country do the Paracel and Spratly Islands belong to?",
         font=("Segoe UI", 8, "bold"),
         anchor=tk.W,
         wraplength=580,
@@ -871,7 +871,7 @@ def show_initial_setup_dialog(
 
     preview_a = tk.Label(
         preview_body,
-        text="✓ Answer: A. Vietnam (Việt Nam)",
+        text="✓ Answer: A. Vietnam",
         font=("Segoe UI", 9, "bold"),
         anchor=tk.W
     )
@@ -879,7 +879,7 @@ def show_initial_setup_dialog(
 
     preview_exp_btn = tk.Label(
         preview_body,
-        text="💡 Explanation: The Paracel and Spratly Islands have historically and legally belonged under the continuous sovereign territory of Vietnam (Việt Nam).",
+        text="💡 Explanation: The Paracel and Spratly Islands have historically and legally belonged under the continuous sovereign territory of Vietnam.",
         font=("Segoe UI", 7),
         anchor=tk.W,
         wraplength=580,
@@ -1074,7 +1074,7 @@ def show_initial_setup_dialog(
 
         r_q = tk.Label(
             r_body,
-            text="Question 1: Which country do the Paracel (Hoàng Sa) and Spratly (Trường Sa) Islands belong to?",
+            text="Question 1: Which country do the Paracel and Spratly Islands belong to?",
             font=("Segoe UI", 8, "bold"),
             anchor=tk.W,
             wraplength=390,
@@ -1084,7 +1084,7 @@ def show_initial_setup_dialog(
 
         r_a = tk.Label(
             r_body,
-            text="✓ Answer: A. Vietnam (Việt Nam)",
+            text="✓ Answer: A. Vietnam",
             font=("Segoe UI", 8, "bold"),
             anchor=tk.W
         )
@@ -1092,7 +1092,7 @@ def show_initial_setup_dialog(
 
         r_exp = tk.Label(
             r_body,
-            text="💡 Explanation: The Paracel and Spratly Islands have historically and legally belonged under the continuous sovereign territory of Vietnam (Việt Nam).",
+            text="💡 Explanation: The Paracel and Spratly Islands have historically and legally belonged under the continuous sovereign territory of Vietnam.",
             font=("Segoe UI", 7),
             anchor=tk.W,
             wraplength=390,
@@ -1159,14 +1159,14 @@ def show_initial_setup_dialog(
     ).pack(anchor=tk.W, pady=(0, 4))
 
     mode_options = [
-        ("multiple_choice", "⚡ Quick Multiple Choice (Answers Only) - Recommended", "Extracts questions and chosen answers (A, B, C, D...) directly without lengthy explanations."),
-        ("multiple_choice_explanation", "📝 Multiple Choice + Explanation", "Extracts questions, answers, and collapsible step-by-step explanations."),
-        ("essay", "✍️ Essay / Step-by-Step Solutions", "Extracts open-ended, mathematical, or essay questions with full written solutions.")
+        ("multiple_choice", "⚡ Quick Multiple Choice - Recommended", "Extracts questions and chosen answers directly without lengthy explanations."),
+        ("multiple_choice_explanation", "📝 Multiple Choice with Explanation", "Extracts questions, answers, and collapsible step-by-step explanations."),
+        ("essay", "✍️ Essay and Step-by-Step Solutions", "Extracts open-ended, mathematical, or essay questions with full written solutions.")
     ]
     cur_mode = settings_manager.get('question_mode', 'multiple_choice')
     mode_var, _ = _create_card_selector(step3_frame, mode_options, cur_mode)
 
-    hk_box = tk.LabelFrame(step3_frame, text=" 2. Customize Keyboard Shortcuts (Click any box to change key) ", font=("Segoe UI", 9, "bold"), padx=12, pady=6)
+    hk_box = tk.LabelFrame(step3_frame, text=" 2. Customize Keyboard Shortcuts ", font=("Segoe UI", 9, "bold"), padx=12, pady=6)
     hk_box.pack(fill=tk.X, pady=(6, 4))
 
     step3_hotkey_entries = {}
@@ -1230,8 +1230,8 @@ def show_initial_setup_dialog(
 
     def update_stepper_ui(step_num):
         subtitles = {
-            1: "Step 1/3: 🤖 Configure AI Provider (or Skip to explore first)",
-            2: "Step 2/3: 🎨 Choose HUD Appearance (UI Theme & Transparency)",
+            1: "Step 1/3: 🤖 Configure AI Provider",
+            2: "Step 2/3: 🎨 Choose HUD Appearance",
             3: "Step 3/3: 🎯 Default Quiz Mode & Custom Hotkeys"
         }
         sub_title_lbl.config(text=subtitles.get(step_num, ""))
@@ -2300,7 +2300,7 @@ def show_settings_dialog(
     card_preview_body = tk.Frame(card_preview_outer, padx=8, pady=6)
     card_preview_body.pack(fill=tk.X)
 
-    card_preview_q = tk.Label(card_preview_body, text="Question 1: What country do Hoang Sa and Truong Sa belong to?", font=("Segoe UI", 8, "bold"), anchor="w")
+    card_preview_q = tk.Label(card_preview_body, text="Question 1: Which country do the Paracel and Spratly Islands belong to?", font=("Segoe UI", 8, "bold"), anchor="w")
     card_preview_q.pack(fill=tk.X)
 
     card_preview_a = tk.Label(card_preview_body, text="→ Answer: A. Vietnam", font=("Segoe UI", 8, "bold"), anchor="w")
