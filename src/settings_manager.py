@@ -187,14 +187,17 @@ class SettingsManager:
         return iter(self.settings)
 
 
-def _create_card_selector(parent, options, current_val, on_change=None):
+def _create_card_selector(parent, options, current_val, on_change=None, columns: int = 1):
     """
     Creates an interactive, beautiful Card/Tile radio selector with zero ambiguity.
     options = [(val, title, description), ...]
+    columns: 1 for single column (pack), >=2 for grid layout.
     Returns (var: tk.StringVar, update_func)
     """
     var = tk.StringVar(master=parent, value=current_val)
     cards = {}
+
+    selected_badge = "✔" if columns > 1 else "✔ Selected"
 
     def update_ui():
         sel = var.get()
@@ -204,7 +207,7 @@ def _create_card_selector(parent, options, current_val, on_change=None):
                 ind_lbl.config(text="🔘", fg="#0066cc", bg="#eff6ff")
                 t_lbl.config(fg="#004085", bg="#eff6ff", font=("Segoe UI", 9, "bold"))
                 d_lbl.config(fg="#374151", bg="#eff6ff")
-                badge_lbl.config(text="✔ Selected", fg="#0066cc", bg="#dbeafe")
+                badge_lbl.config(text=selected_badge, fg="#0066cc", bg="#dbeafe")
             else:
                 c_frame.config(bg="#ffffff", highlightbackground="#d1d5db", highlightcolor="#d1d5db", highlightthickness=1)
                 ind_lbl.config(text="⚪", fg="#9ca3af", bg="#ffffff")
@@ -212,24 +215,34 @@ def _create_card_selector(parent, options, current_val, on_change=None):
                 d_lbl.config(fg="#6b7280", bg="#ffffff")
                 badge_lbl.config(text="", bg="#ffffff")
 
-    for val, title, desc in options:
-        card = tk.Frame(parent, bg="#ffffff", relief=tk.FLAT, bd=0, padx=10, pady=8, cursor="hand2")
-        card.pack(fill=tk.X, pady=4)
+    if columns > 1:
+        for c in range(columns):
+            parent.grid_columnconfigure(c, weight=1)
+
+    for i, (val, title, desc) in enumerate(options):
+        pad_y = 5 if columns > 1 else 8
+        card = tk.Frame(parent, bg="#ffffff", relief=tk.FLAT, bd=0, padx=8, pady=pad_y, cursor="hand2")
+        if columns > 1:
+            r_idx, c_idx = divmod(i, columns)
+            card.grid(row=r_idx, column=c_idx, sticky="nsew", padx=4, pady=3)
+        else:
+            card.pack(fill=tk.X, pady=4)
 
         top_row = tk.Frame(card, bg="#ffffff")
         top_row.pack(fill=tk.X)
 
-        ind_lbl = tk.Label(top_row, text="⚪", font=("Segoe UI", 11), bg="#ffffff", cursor="hand2")
-        ind_lbl.pack(side=tk.LEFT, padx=(0, 6))
+        ind_lbl = tk.Label(top_row, text="⚪", font=("Segoe UI", 10), bg="#ffffff", cursor="hand2")
+        ind_lbl.pack(side=tk.LEFT, padx=(0, 4))
 
-        t_lbl = tk.Label(top_row, text=title, font=("Segoe UI", 9), bg="#ffffff", cursor="hand2")
+        t_lbl = tk.Label(top_row, text=title, font=("Segoe UI", 8 if columns > 1 else 9), bg="#ffffff", cursor="hand2")
         t_lbl.pack(side=tk.LEFT)
 
-        badge_lbl = tk.Label(top_row, text="", font=("Segoe UI", 8, "bold"), padx=6, pady=1, cursor="hand2")
+        badge_lbl = tk.Label(top_row, text="", font=("Segoe UI", 8, "bold"), padx=4, pady=0, cursor="hand2")
         badge_lbl.pack(side=tk.RIGHT)
 
-        d_lbl = tk.Label(card, text=desc, font=("Segoe UI", 8), bg="#ffffff", justify=tk.LEFT, cursor="hand2")
-        d_lbl.pack(anchor=tk.W, padx=(26, 0), pady=(2, 0))
+        wrap_w = 260 if columns > 1 else 540
+        d_lbl = tk.Label(card, text=desc, font=("Segoe UI", 7 if columns > 1 else 8), bg="#ffffff", justify=tk.LEFT, wraplength=wrap_w, cursor="hand2")
+        d_lbl.pack(anchor=tk.W, padx=(20, 0), pady=(1, 0))
 
         def make_click_handler(choice_val):
             def _handler(e=None):
@@ -387,8 +400,9 @@ def show_initial_setup_dialog(
 
     root = tk.Tk()
     root.title("AI Quiz Assistant 2.0 - Initial Setup Wizard")
-    root.geometry("640x680")
-    root.minsize(600, 640)
+    ww, wh = 660, 720
+    root.geometry(f"{ww}x{wh}")
+    root.minsize(620, 680)
     root.resizable(True, True)
 
     # Set modern app window icon
@@ -410,8 +424,10 @@ def show_initial_setup_dialog(
             pass
 
     root.update_idletasks()
-    x = max(0, (root.winfo_screenwidth() - 640) // 2)
-    y = max(20, (root.winfo_screenheight() - 680) // 2)
+    sw = root.winfo_screenwidth()
+    sh = root.winfo_screenheight()
+    x = max(0, (sw - ww) // 2)
+    y = max(20, (sh - wh) // 2)
     root.geometry(f"+{x}+{y}")
 
     root.lift()
@@ -453,7 +469,7 @@ def show_initial_setup_dialog(
     step_labels = [
         "1. 🤖 AI Provider",
         "2. 🎨 HUD Theme",
-        "3. 🎯 Mode & Shortcuts"
+        "3. 🎯 Mode & Hotkeys"
     ]
     for idx, s_text in enumerate(step_labels):
         pill = tk.Label(
@@ -764,10 +780,10 @@ def show_initial_setup_dialog(
     ).pack(anchor=tk.W, pady=(0, 2))
     tk.Label(
         step2_frame,
-        text="Click any theme to preview background color and text contrast on the sample card:",
+        text="Click any theme to preview background color, borders, and text contrast:",
         font=("Segoe UI", 8),
         fg="#64748b"
-    ).pack(anchor=tk.W, pady=(0, 6))
+    ).pack(anchor=tk.W, pady=(0, 4))
 
     cur_theme = settings_manager.get('popup_bg_color', '#ffffff')
     if str(cur_theme).startswith('stealth'):
@@ -778,12 +794,12 @@ def show_initial_setup_dialog(
         cur_theme_init = '#ffffff'
 
     theme_options = [
-        ("stealth", "👻 Stealth", "Borderless ghost card matching screen background, muted slate non-bold text. Ultra-discreet during exams."),
-        ("#ffffff", "⚪ Pure White", "Clean pure white background, subtle border, high-contrast dark text."),
-        ("#1e1e2e", "🌙 Dark Mode", "Catppuccin Mocha dark theme with crisp white text, gentle on eyes at night."),
-        ("#fef9c3", "🍦 Warm Cream", "Warm cream tone, reduces eye strain during extended study sessions."),
-        ("#e0f2fe", "🔵 Soft Blue", "Pastel blue background, modern and elegant aesthetic."),
-        ("#f8fafc", "🌫️ Modern Gray", "Neutral light gray minimalist theme, professional clean look.")
+        ("stealth", "👻 Stealth (Tàng hình)", "Ghost card matching screen, borderless, muted non-bold text."),
+        ("#ffffff", "⚪ Pure White (Trắng sáng)", "Clean pure white, subtle border, high-contrast dark text."),
+        ("#1e1e2e", "🌙 Dark Mode (Tối dịu mắt)", "Catppuccin Mocha dark theme with crisp white text."),
+        ("#fef9c3", "🍦 Warm Cream (Vàng kem)", "Warm cream tone, reduces eye strain during long tests."),
+        ("#e0f2fe", "🔵 Soft Blue (Xanh dịu)", "Pastel blue background, modern and elegant aesthetic."),
+        ("#f8fafc", "🌫️ Modern Gray (Xám nhạt)", "Neutral light gray minimalist theme, professional look.")
     ]
 
     selected_theme_var = tk.StringVar(value=cur_theme_init)
@@ -791,8 +807,39 @@ def show_initial_setup_dialog(
     themes_wrapper = tk.Frame(step2_frame)
     themes_wrapper.pack(fill=tk.X, pady=(0, 4))
 
-    preview_box = tk.LabelFrame(step2_frame, text=" 👁️ Live HUD Card Preview ", font=("Segoe UI", 9, "bold"), padx=10, pady=6)
-    preview_box.pack(fill=tk.X, pady=(4, 6))
+    # Helper functions for color blending and live opacity simulation
+    def _hex_to_rgb(hex_s):
+        s = hex_s.lstrip('#')
+        if len(s) == 6:
+            return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
+        return (255, 255, 255)
+
+    def _rgb_to_hex(rgb):
+        return f"#{max(0, min(255, int(round(rgb[0])))):02x}{max(0, min(255, int(round(rgb[1])))):02x}{max(0, min(255, int(round(rgb[2])))):02x}"
+
+    def blend_color(fg_hex, bg_hex, alpha):
+        try:
+            fg = _hex_to_rgb(fg_hex)
+            bg = _hex_to_rgb(bg_hex)
+            blended = (
+                fg[0] * alpha + bg[0] * (1.0 - alpha),
+                fg[1] * alpha + bg[1] * (1.0 - alpha),
+                fg[2] * alpha + bg[2] * (1.0 - alpha)
+            )
+            return _rgb_to_hex(blended)
+        except Exception:
+            return fg_hex
+
+    preview_box = tk.LabelFrame(
+        step2_frame,
+        text=" 👁️ Live HUD Card Preview (Desktop Background Simulation) ",
+        font=("Segoe UI", 9, "bold"),
+        padx=10,
+        pady=6,
+        bg="#0f172a",
+        fg="#94a3b8"
+    )
+    preview_box.pack(fill=tk.X, pady=(2, 4))
 
     preview_outer = tk.Frame(preview_box, bd=1, relief=tk.SOLID)
     preview_outer.pack(fill=tk.X, padx=4, pady=4)
@@ -803,7 +850,7 @@ def show_initial_setup_dialog(
     preview_title = tk.Label(preview_header, text="Question 1/1", font=("Segoe UI", 8, "bold"))
     preview_title.pack(side=tk.LEFT)
 
-    preview_badge = tk.Label(preview_header, text="Gemini", font=("Segoe UI", 7), padx=4, pady=1)
+    preview_badge = tk.Label(preview_header, text="AI Vision", font=("Segoe UI", 7), padx=4, pady=1)
     preview_badge.pack(side=tk.LEFT, padx=(6, 0))
 
     preview_close = tk.Label(preview_header, text="✕", font=("Segoe UI", 8, "bold"))
@@ -812,58 +859,90 @@ def show_initial_setup_dialog(
     preview_body = tk.Frame(preview_outer, padx=10, pady=6)
     preview_body.pack(fill=tk.X)
 
-    preview_q = tk.Label(preview_body, text="Question 1: What is the capital of France?", font=("Segoe UI", 9, "bold"), anchor=tk.W)
+    preview_q = tk.Label(
+        preview_body,
+        text="Question 1: Which country do the Paracel (Hoàng Sa) and Spratly (Trường Sa) Islands belong to?",
+        font=("Segoe UI", 8, "bold"),
+        anchor=tk.W,
+        wraplength=580,
+        justify=tk.LEFT
+    )
     preview_q.pack(anchor=tk.W)
 
-    preview_a = tk.Label(preview_body, text="✓ Answer: A. Paris", font=("Segoe UI", 9, "bold"), anchor=tk.W)
-    preview_a.pack(anchor=tk.W, pady=(2, 3))
+    preview_a = tk.Label(
+        preview_body,
+        text="✓ Answer: A. Vietnam (Việt Nam)",
+        font=("Segoe UI", 9, "bold"),
+        anchor=tk.W
+    )
+    preview_a.pack(anchor=tk.W, pady=(2, 2))
 
-    preview_exp_btn = tk.Label(preview_body, text="💡 Explanation: Paris is the capital and largest city of France...", font=("Segoe UI", 7), padx=6, pady=2)
+    preview_exp_btn = tk.Label(
+        preview_body,
+        text="💡 Explanation: The Paracel and Spratly Islands have historically and legally belonged under the continuous sovereign territory of Vietnam (Việt Nam).",
+        font=("Segoe UI", 7),
+        anchor=tk.W,
+        wraplength=580,
+        justify=tk.LEFT,
+        padx=6,
+        pady=2
+    )
     preview_exp_btn.pack(anchor=tk.W)
 
-    def apply_theme_preview(theme_code):
-        try:
-            try:
-                from popup_manager import get_popup_theme
-            except ImportError:
-                from src.popup_manager import get_popup_theme
-            th = get_popup_theme(theme_code)
-            is_st = th.get('is_stealth', False)
+    # State for real floating HUD window on desktop
+    real_hud_state = {'win': None, 'widgets': {}}
 
-            preview_outer.config(
+    def close_real_hud():
+        if real_hud_state['win']:
+            try:
+                if real_hud_state['win'].winfo_exists():
+                    real_hud_state['win'].destroy()
+            except Exception:
+                pass
+            real_hud_state['win'] = None
+
+    def update_real_hud_content(th, is_st, alpha):
+        win = real_hud_state.get('win')
+        if not win or not win.winfo_exists():
+            return
+        try:
+            win.attributes('-alpha', alpha)
+            widgets = real_hud_state.get('widgets', {})
+            if not widgets:
+                return
+            widgets['outer'].config(
                 bg=th.get('border', '#cbd5e1'),
                 bd=0 if is_st else 1,
                 relief=tk.FLAT if is_st else tk.SOLID
             )
-            preview_header.config(bg=th.get('header_bg', '#f1f5f9'))
-            preview_title.config(
+            widgets['header'].config(bg=th.get('header_bg', '#f1f5f9'))
+            widgets['title'].config(
                 bg=th.get('header_bg', '#f1f5f9'),
                 fg=th.get('accent', '#0284c7'),
                 font=("Segoe UI", 8, "normal" if is_st else "bold")
             )
-            preview_badge.config(
+            widgets['badge'].config(
                 bg=th.get('badge_bg', '#e2e8f0'),
                 fg=th.get('badge_fg', '#334155'),
                 bd=0 if is_st else 1,
                 relief=tk.FLAT if is_st else tk.SOLID
             )
-            preview_close.config(
+            widgets['close'].config(
                 bg=th.get('header_bg', '#f1f5f9'),
-                fg=th.get('close_fg', '#dc2626'),
-                font=("Segoe UI", 8 if is_st else 9, "normal" if is_st else "bold")
+                fg=th.get('close_fg', '#dc2626')
             )
-            preview_body.config(bg=th.get('bg', '#ffffff'))
-            preview_q.config(
+            widgets['body'].config(bg=th.get('bg', '#ffffff'))
+            widgets['q'].config(
                 bg=th.get('bg', '#ffffff'),
                 fg=th.get('question', '#0369a1'),
                 font=("Segoe UI", 8, "normal" if is_st else "bold")
             )
-            preview_a.config(
+            widgets['a'].config(
                 bg=th.get('bg', '#ffffff'),
                 fg=th.get('answer', '#15803d'),
                 font=("Segoe UI", 8, "normal" if is_st else "bold")
             )
-            preview_exp_btn.config(
+            widgets['exp'].config(
                 bg=th.get('exp_btn_bg', '#e2e8f0'),
                 fg=th.get('exp_btn_fg', '#0284c7'),
                 bd=0 if is_st else 1,
@@ -872,16 +951,78 @@ def show_initial_setup_dialog(
         except Exception:
             pass
 
+    def apply_theme_preview(theme_code=None):
+        if theme_code is None:
+            theme_code = selected_theme_var.get()
+        try:
+            try:
+                from popup_manager import get_popup_theme
+            except ImportError:
+                from src.popup_manager import get_popup_theme
+            th = get_popup_theme(theme_code)
+            is_st = th.get('is_stealth', False)
+            alpha = float(opacity_var.get()) / 100.0
+
+            # Compute blended colors simulating transparency over the desktop container #0f172a
+            raw_bg = th.get('bg', '#ffffff')
+            raw_hdr = th.get('header_bg', '#f1f5f9')
+            bg_blended = blend_color(raw_bg, "#0f172a", alpha)
+            hdr_blended = blend_color(raw_hdr, "#0f172a", alpha)
+
+            preview_outer.config(
+                bg=blend_color(th.get('border', '#cbd5e1'), "#0f172a", alpha),
+                bd=0 if is_st else 1,
+                relief=tk.FLAT if is_st else tk.SOLID
+            )
+            preview_header.config(bg=hdr_blended)
+            preview_title.config(
+                bg=hdr_blended,
+                fg=th.get('accent', '#0284c7'),
+                font=("Segoe UI", 8, "normal" if is_st else "bold")
+            )
+            preview_badge.config(
+                bg=blend_color(th.get('badge_bg', '#e2e8f0'), "#0f172a", alpha),
+                fg=th.get('badge_fg', '#334155'),
+                bd=0 if is_st else 1,
+                relief=tk.FLAT if is_st else tk.SOLID
+            )
+            preview_close.config(
+                bg=hdr_blended,
+                fg=th.get('close_fg', '#dc2626'),
+                font=("Segoe UI", 8 if is_st else 9, "normal" if is_st else "bold")
+            )
+            preview_body.config(bg=bg_blended)
+            preview_q.config(
+                bg=bg_blended,
+                fg=th.get('question', '#0369a1'),
+                font=("Segoe UI", 8, "normal" if is_st else "bold")
+            )
+            preview_a.config(
+                bg=bg_blended,
+                fg=th.get('answer', '#15803d'),
+                font=("Segoe UI", 8, "normal" if is_st else "bold")
+            )
+            preview_exp_btn.config(
+                bg=blend_color(th.get('exp_btn_bg', '#e2e8f0'), "#0f172a", alpha),
+                fg=th.get('exp_btn_fg', '#0284c7'),
+                bd=0 if is_st else 1,
+                relief=tk.FLAT if is_st else tk.SOLID
+            )
+
+            if real_hud_state['win'] and real_hud_state['win'].winfo_exists():
+                update_real_hud_content(th, is_st, alpha)
+        except Exception:
+            pass
+
     def on_theme_change(new_th):
         selected_theme_var.set(new_th)
         apply_theme_preview(new_th)
 
-    _, _ = _create_card_selector(themes_wrapper, theme_options, cur_theme_init, on_change=on_theme_change)
-    apply_theme_preview(cur_theme_init)
+    _, _ = _create_card_selector(themes_wrapper, theme_options, cur_theme_init, on_change=on_theme_change, columns=2)
 
     # Opacity row
     op_box = tk.Frame(step2_frame)
-    op_box.pack(fill=tk.X, pady=(4, 0))
+    op_box.pack(fill=tk.X, pady=(2, 2))
 
     cur_opacity_pct = int(round(float(settings_manager.get('popup_opacity', 0.96)) * 100))
     opacity_var = tk.IntVar(value=cur_opacity_pct)
@@ -890,14 +1031,126 @@ def show_initial_setup_dialog(
     op_val_lbl = tk.Label(op_box, text=f"{cur_opacity_pct}%", font=("Segoe UI", 9, "bold"), fg="#0284c7", width=5)
     op_val_lbl.pack(side=tk.RIGHT)
 
+    def toggle_real_hud():
+        if real_hud_state['win'] and real_hud_state['win'].winfo_exists():
+            close_real_hud()
+            real_hud_btn.config(text="🪟 Test Real HUD on Desktop", bg="#0284c7")
+        else:
+            show_real_hud()
+            real_hud_btn.config(text="✕ Close Real HUD", bg="#dc2626")
+
+    def show_real_hud():
+        close_real_hud()
+        win = tk.Toplevel(root)
+        win.overrideredirect(True)
+        win.attributes('-topmost', True)
+        alpha = float(opacity_var.get()) / 100.0
+        win.attributes('-alpha', alpha)
+
+        sw = root.winfo_screenwidth()
+        win_w, win_h = 420, 150
+        pos_x = max(20, sw - win_w - 40)
+        pos_y = 60
+        win.geometry(f"{win_w}x{win_h}+{pos_x}+{pos_y}")
+
+        r_outer = tk.Frame(win, bd=1, relief=tk.SOLID)
+        r_outer.pack(fill=tk.BOTH, expand=True)
+
+        r_header = tk.Frame(r_outer, padx=8, pady=3)
+        r_header.pack(fill=tk.X)
+
+        r_title = tk.Label(r_header, text="Question 1/1 [Real HUD Preview]", font=("Segoe UI", 8, "bold"))
+        r_title.pack(side=tk.LEFT)
+
+        r_badge = tk.Label(r_header, text="Live HUD", font=("Segoe UI", 7), padx=4, pady=1)
+        r_badge.pack(side=tk.LEFT, padx=(6, 0))
+
+        r_close = tk.Label(r_header, text="✕", font=("Segoe UI", 8, "bold"), cursor="hand2")
+        r_close.pack(side=tk.RIGHT)
+        r_close.bind("<Button-1>", lambda e: toggle_real_hud())
+
+        r_body = tk.Frame(r_outer, padx=10, pady=6)
+        r_body.pack(fill=tk.BOTH, expand=True)
+
+        r_q = tk.Label(
+            r_body,
+            text="Question 1: Which country do the Paracel (Hoàng Sa) and Spratly (Trường Sa) Islands belong to?",
+            font=("Segoe UI", 8, "bold"),
+            anchor=tk.W,
+            wraplength=390,
+            justify=tk.LEFT
+        )
+        r_q.pack(anchor=tk.W)
+
+        r_a = tk.Label(
+            r_body,
+            text="✓ Answer: A. Vietnam (Việt Nam)",
+            font=("Segoe UI", 8, "bold"),
+            anchor=tk.W
+        )
+        r_a.pack(anchor=tk.W, pady=(2, 2))
+
+        r_exp = tk.Label(
+            r_body,
+            text="💡 Explanation: The Paracel and Spratly Islands have historically and legally belonged under the continuous sovereign territory of Vietnam (Việt Nam).",
+            font=("Segoe UI", 7),
+            anchor=tk.W,
+            wraplength=390,
+            justify=tk.LEFT,
+            padx=4,
+            pady=1
+        )
+        r_exp.pack(anchor=tk.W)
+
+        real_hud_state['win'] = win
+        real_hud_state['widgets'] = {
+            'outer': r_outer,
+            'header': r_header,
+            'title': r_title,
+            'badge': r_badge,
+            'close': r_close,
+            'body': r_body,
+            'q': r_q,
+            'a': r_a,
+            'exp': r_exp
+        }
+
+        try:
+            try:
+                from popup_manager import get_popup_theme
+            except ImportError:
+                from src.popup_manager import get_popup_theme
+            th = get_popup_theme(selected_theme_var.get())
+            is_st = th.get('is_stealth', False)
+            update_real_hud_content(th, is_st, alpha)
+        except Exception:
+            pass
+
+    real_hud_btn = tk.Button(
+        op_box,
+        text="🪟 Test Real HUD on Desktop",
+        command=toggle_real_hud,
+        font=("Segoe UI", 8, "bold"),
+        bg="#0284c7",
+        fg="#ffffff",
+        padx=8,
+        pady=2,
+        cursor="hand2"
+    )
+    real_hud_btn.pack(side=tk.RIGHT, padx=(6, 8))
+
     def on_op_slide(val):
-        op_val_lbl.config(text=f"{int(float(val))}%")
+        pct = int(float(val))
+        op_val_lbl.config(text=f"{pct}%")
+        apply_theme_preview()
 
     op_scale = ttk.Scale(op_box, from_=60, to=100, variable=opacity_var, command=on_op_slide)
-    op_scale.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=10)
+    op_scale.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(8, 4))
+
+    apply_theme_preview(cur_theme_init)
 
     # ========================================================
-    # STEP 3: Quiz Mode & Hotkeys Cheatsheet
+    # STEP 3: Quiz Mode & Hotkeys Customization
     # ========================================================
     tk.Label(
         step3_frame,
@@ -913,24 +1166,47 @@ def show_initial_setup_dialog(
     cur_mode = settings_manager.get('question_mode', 'multiple_choice')
     mode_var, _ = _create_card_selector(step3_frame, mode_options, cur_mode)
 
-    hk_box = tk.LabelFrame(step3_frame, text=" 2. Core Keyboard Shortcuts ", font=("Segoe UI", 9, "bold"), padx=12, pady=6)
+    hk_box = tk.LabelFrame(step3_frame, text=" 2. Customize Keyboard Shortcuts (Click any box to change key) ", font=("Segoe UI", 9, "bold"), padx=12, pady=6)
     hk_box.pack(fill=tk.X, pady=(6, 4))
 
-    hotkeys_info = [
-        ("Alt + Z", "📸 Silent Screen Capture", "Silent background capture & solve; never pops up unprompted during exams"),
-        ("Alt + X", "⚡ Auto-Fill Answers", "AI coordinates detection & automated mouse clicks on correct options"),
-        ("Alt + C", "👁️ Toggle Latest Result", "Show or hide the floating HUD card with the latest question answer"),
-        ("Alt + H", "📜 View Full History", "Browse all captured questions in order (1..N) plus pending queue items"),
-        ("Alt + S", "⚙️ Open Settings Dialog", "Customize hotkeys, HUD themes, AI providers, and failover options")
+    step3_hotkey_entries = {}
+    hotkey_defs = [
+        ('hotkey_capture',  '📸 Silent Screen Capture & Solve:', 'z', 'Captures screen silently; solves quiz in background'),
+        ('hotkey_autofill', '⚡ Auto-Fill & Click Choices:',     'x', 'AI coordinates detection & automated mouse clicks'),
+        ('hotkey_answers',  '👁 Show Latest Question Result:',   'c', 'Toggles floating HUD card with latest question answer'),
+        ('hotkey_history',  '📜 View Full Question History:',    'h', 'Browses captured questions in order (1..N) & queue'),
+        ('hotkey_reset',    '🔄 Reset Quiz Session:',            'r', 'Clears session history & cached answers for new test'),
+        ('hotkey_settings', '⚙️ Open Settings Dialog:',          's', 'Opens settings to adjust themes, AI keys & options')
     ]
 
-    for hk, label, desc in hotkeys_info:
+    def make_step3_hk_formatter(ent):
+        def on_key_typed(event):
+            val = ent.get().strip()
+            if not val:
+                return
+            char = val[-1].lower()
+            if char.isalnum():
+                ent.delete(0, tk.END)
+                ent.insert(0, char.upper())
+        return on_key_typed
+
+    for hk_key, label_text, default_val, desc in hotkey_defs:
         row = tk.Frame(hk_box)
         row.pack(fill=tk.X, pady=2)
-        badge = tk.Label(row, text=hk, font=("Segoe UI", 8, "bold"), bg="#1e293b", fg="#ffffff", padx=6, pady=1)
-        badge.pack(side=tk.LEFT)
-        tk.Label(row, text=f" {label}:", font=("Segoe UI", 8, "bold"), fg="#1e40af").pack(side=tk.LEFT)
-        tk.Label(row, text=f" {desc}", font=("Segoe UI", 8), fg="#475569").pack(side=tk.LEFT)
+
+        lbl = tk.Label(row, text=label_text, font=("Segoe UI", 8, "bold"), width=30, anchor=tk.W)
+        lbl.pack(side=tk.LEFT)
+
+        tk.Label(row, text="Alt +", font=("Consolas", 9, "bold"), fg="#475569").pack(side=tk.LEFT, padx=(2, 2))
+
+        curr_val = settings_manager.get(hk_key, default_val)
+        entry = tk.Entry(row, width=3, font=("Consolas", 10, "bold"), justify=tk.CENTER, bd=1, relief=tk.SOLID)
+        entry.insert(0, str(curr_val).upper())
+        entry.pack(side=tk.LEFT, padx=(0, 8))
+        entry.bind("<KeyRelease>", make_step3_hk_formatter(entry))
+        step3_hotkey_entries[hk_key] = entry
+
+        tk.Label(row, text=desc, font=("Segoe UI", 8), fg="#64748b", anchor=tk.W).pack(side=tk.LEFT, fill=tk.X, expand=True)
 
     note3 = tk.Label(
         step3_frame,
@@ -949,13 +1225,14 @@ def show_initial_setup_dialog(
     btn_box.pack(fill=tk.X, side=tk.BOTTOM)
 
     def on_exit():
+        close_real_hud()
         root.destroy()
 
     def update_stepper_ui(step_num):
         subtitles = {
             1: "Step 1/3: 🤖 Configure AI Provider (or Skip to explore first)",
-            2: "Step 2/3: 🎨 Choose HUD Appearance (UI Theme & Opacity)",
-            3: "Step 3/3: 🎯 Default Quiz Mode & Core Hotkeys Cheatsheet"
+            2: "Step 2/3: 🎨 Choose HUD Appearance (UI Theme & Transparency)",
+            3: "Step 3/3: 🎯 Default Quiz Mode & Custom Hotkeys"
         }
         sub_title_lbl.config(text=subtitles.get(step_num, ""))
 
@@ -1062,6 +1339,25 @@ def show_initial_setup_dialog(
             if sel_p == 'gemini':
                 settings_manager.settings['gemini_model'] = gemini_model_combo.get().strip()
 
+        # Validate unique hotkeys (Step 3)
+        used_keys = {}
+        for hk_key, ent in step3_hotkey_entries.items():
+            val = ent.get().strip().lower()
+            if not val or not val.isalnum():
+                messagebox.showerror("Invalid Hotkey", "Please enter a valid single letter or number for each shortcut.", parent=root)
+                return
+            char = val[0]
+            if char in used_keys:
+                messagebox.showerror("Duplicate Hotkey", f"The hotkey 'Alt + {char.upper()}' is assigned to multiple actions! Please assign distinct keys.", parent=root)
+                return
+            used_keys[char] = hk_key
+
+        # Save Hotkeys (Step 3)
+        for hk_key, ent in step3_hotkey_entries.items():
+            val = ent.get().strip().lower()
+            if val and val.isalnum():
+                settings_manager.settings[hk_key] = val[0]
+
         # 2. Save Theme & Opacity (Step 2)
         settings_manager.settings['popup_bg_color'] = selected_theme_var.get()
         settings_manager.settings['popup_opacity'] = round(opacity_var.get() / 100.0, 2)
@@ -1074,10 +1370,12 @@ def show_initial_setup_dialog(
         if config_manager:
             config_manager.reload()
 
+        close_real_hud()
         result['success'] = True
         root.destroy()
 
     def show_step(step_num):
+        close_real_hud()
         current_step[0] = step_num
         update_stepper_ui(step_num)
 

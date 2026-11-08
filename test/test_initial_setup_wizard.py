@@ -80,6 +80,31 @@ class TestInitialSetupWizard(unittest.TestCase):
             cm = ConfigManager(env_file="non_existent_test.env")
             self.assertEqual(cm.get('CUSTOM_API_URL'), 'http://localhost:11434/v1')
 
+    def test_card_selector_multi_column(self):
+        """Verify _create_card_selector supports 2-column grid layout"""
+        import tkinter as tk
+        from settings_manager import _create_card_selector
+        root = tk.Tk()
+        root.withdraw()
+        try:
+            parent = tk.Frame(root)
+            parent.pack()
+            opts = [("1", "T1", "D1"), ("2", "T2", "D2"), ("3", "T3", "D3"), ("4", "T4", "D4")]
+            var, update_ui = _create_card_selector(parent, opts, "1", columns=2)
+            self.assertEqual(var.get(), "1")
+            var.set("3")
+            update_ui()
+            self.assertEqual(var.get(), "3")
+        finally:
+            root.destroy()
+
+    def test_hotkey_settings_customization(self):
+        """Verify hotkey values can be assigned and validated"""
+        self.sm.settings['hotkey_capture'] = 'k'
+        self.sm.settings['hotkey_autofill'] = 'j'
+        self.assertEqual(self.sm.get('hotkey_capture'), 'k')
+        self.assertEqual(self.sm.get('hotkey_autofill'), 'j')
+
 
 if __name__ == '__main__':
     unittest.main()
