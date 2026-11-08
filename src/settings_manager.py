@@ -1523,7 +1523,7 @@ def show_settings_dialog(
 
     presets = [
         ("⚪ White", "#ffffff"),
-        ("👻 Stealth (Tàng hình)", "stealth"),
+        ("👻 Stealth", "stealth"),
         ("🌫️ Gray", "#f8fafc"),
         ("📜 Cream", "#fef9c3"),
         ("🌊 Blue", "#e0f2fe"),
