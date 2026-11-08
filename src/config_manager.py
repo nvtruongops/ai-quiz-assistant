@@ -83,6 +83,24 @@ class ConfigManager:
     def is_valid(self) -> bool:
         """Check if active provider has valid credentials configured"""
         provider = self.get('API_PROVIDER', 'gemini')
-        if provider == 'custom':
+        return self.is_provider_configured(provider)
+
+    def is_provider_configured(self, provider: str) -> bool:
+        """Check if a specific provider has valid configuration"""
+        p = (provider or '').strip().lower()
+        if p == 'custom':
             return bool(self.get('CUSTOM_API_URL') and self.get('CUSTOM_MODEL'))
-        return bool(self.get('GEMINI_API_KEY'))
+        elif p == 'gemini':
+            return bool(self.get('GEMINI_API_KEY'))
+        return False
+
+    def get_alternate_provider(self, current_provider: Optional[str] = None) -> Optional[str]:
+        """
+        Get alternate provider name if it is configured and ready as a fallback.
+        E.g. If current is 'gemini', checks if 'custom' is configured; if current is 'custom', checks 'gemini'.
+        """
+        curr = (current_provider or self.get('API_PROVIDER', 'gemini')).strip().lower()
+        alt = 'custom' if curr == 'gemini' else 'gemini'
+        if self.is_provider_configured(alt):
+            return alt
+        return None

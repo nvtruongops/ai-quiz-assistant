@@ -33,6 +33,7 @@ DEFAULT_SETTINGS = {
     'answer_display_mode': 'letter_and_text',    # 'letter_and_text' or 'letter_only'
     'api_provider': 'gemini',                    # 'gemini' or 'custom'
     'gemini_model': '',
+    'enable_provider_failover': True,            # Auto-rotate to backup provider on error / rate limit
     # Hotkey combinations (Alt + key)
     'hotkey_capture': 'z',
     'hotkey_autofill': 'x',
@@ -446,11 +447,6 @@ def show_initial_setup_dialog(
     g_key_box = tk.Frame(gemini_frame)
     g_key_box.pack(fill=tk.X, pady=(2, 6))
 
-    gemini_key_entry = tk.Entry(g_key_box, show="*", font=("Segoe UI", 10))
-    gemini_key_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-    if cur_gemini_key:
-        gemini_key_entry.insert(0, cur_gemini_key)
-
     def toggle_g_key():
         if gemini_key_entry.cget('show') == '*':
             gemini_key_entry.config(show='')
@@ -459,8 +455,13 @@ def show_initial_setup_dialog(
             gemini_key_entry.config(show='*')
             toggle_g_btn.config(text="👁️ Show")
 
-    toggle_g_btn = tk.Button(g_key_box, text="👁️ Show", command=toggle_g_key, width=12, padx=4, font=("Segoe UI", 8))
-    toggle_g_btn.pack(side=tk.LEFT, padx=(6, 0))
+    toggle_g_btn = tk.Button(g_key_box, text="👁️ Show", command=toggle_g_key, padx=8, font=("Segoe UI", 8))
+    toggle_g_btn.pack(side=tk.RIGHT, padx=(6, 0))
+
+    gemini_key_entry = tk.Entry(g_key_box, show="*", font=("Segoe UI", 10))
+    gemini_key_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    if cur_gemini_key:
+        gemini_key_entry.insert(0, cur_gemini_key)
 
     tk.Label(gemini_frame, text="Gemini Model:", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
     g_model_box = tk.Frame(gemini_frame)
@@ -581,11 +582,6 @@ def show_initial_setup_dialog(
     c_key_box = tk.Frame(custom_frame)
     c_key_box.pack(fill=tk.X, pady=(2, 6))
 
-    custom_key_entry = tk.Entry(c_key_box, show="*", font=("Segoe UI", 10))
-    custom_key_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-    if cur_custom_key:
-        custom_key_entry.insert(0, cur_custom_key)
-
     def toggle_c_key():
         if custom_key_entry.cget('show') == '*':
             custom_key_entry.config(show='')
@@ -594,8 +590,13 @@ def show_initial_setup_dialog(
             custom_key_entry.config(show='*')
             toggle_c_btn.config(text="👁️ Show")
 
-    toggle_c_btn = tk.Button(c_key_box, text="👁️ Show", command=toggle_c_key, width=12, padx=4, font=("Segoe UI", 8))
-    toggle_c_btn.pack(side=tk.LEFT, padx=(6, 0))
+    toggle_c_btn = tk.Button(c_key_box, text="👁️ Show", command=toggle_c_key, padx=8, font=("Segoe UI", 8))
+    toggle_c_btn.pack(side=tk.RIGHT, padx=(6, 0))
+
+    custom_key_entry = tk.Entry(c_key_box, show="*", font=("Segoe UI", 10))
+    custom_key_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    if cur_custom_key:
+        custom_key_entry.insert(0, cur_custom_key)
 
     tk.Label(custom_frame, text="Model Name (Vision-capable):", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
     c_model_box = tk.Frame(custom_frame)
@@ -1060,11 +1061,6 @@ def show_settings_dialog(
     gem_key_frame = tk.Frame(gemini_box)
     gem_key_frame.pack(fill=tk.X, pady=(2, 6))
 
-    cur_gem_key = os.getenv('GEMINI_API_KEY', '')
-    gem_key_entry = tk.Entry(gem_key_frame, font=("Segoe UI", 9), show="*")
-    gem_key_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-    gem_key_entry.insert(0, cur_gem_key)
-
     def toggle_gem_show():
         if gem_key_entry.cget('show') == '*':
             gem_key_entry.config(show='')
@@ -1073,8 +1069,13 @@ def show_settings_dialog(
             gem_key_entry.config(show='*')
             gem_toggle_btn.config(text="👁️ Show")
 
-    gem_toggle_btn = tk.Button(gem_key_frame, text="👁️ Show", command=toggle_gem_show, font=("Segoe UI", 8), width=12, padx=4)
+    gem_toggle_btn = tk.Button(gem_key_frame, text="👁️ Show", command=toggle_gem_show, font=("Segoe UI", 8), padx=8)
     gem_toggle_btn.pack(side=tk.RIGHT, padx=(6, 0))
+
+    cur_gem_key = os.getenv('GEMINI_API_KEY', '')
+    gem_key_entry = tk.Entry(gem_key_frame, font=("Segoe UI", 9), show="*")
+    gem_key_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    gem_key_entry.insert(0, cur_gem_key)
 
     tk.Label(gemini_box, text="Gemini Model:", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
     g_model_row = tk.Frame(gemini_box)
@@ -1182,10 +1183,6 @@ def show_settings_dialog(
     custom_key_frame = tk.Frame(custom_box)
     custom_key_frame.pack(fill=tk.X, pady=(2, 6))
 
-    custom_key_entry = tk.Entry(custom_key_frame, font=("Segoe UI", 9), show="*")
-    custom_key_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
-    custom_key_entry.insert(0, os.getenv('CUSTOM_API_KEY', ''))
-
     def toggle_cust_show():
         if custom_key_entry.cget('show') == '*':
             custom_key_entry.config(show='')
@@ -1194,8 +1191,12 @@ def show_settings_dialog(
             custom_key_entry.config(show='*')
             cust_toggle_btn.config(text="👁️ Show")
 
-    cust_toggle_btn = tk.Button(custom_key_frame, text="👁️ Show", command=toggle_cust_show, font=("Segoe UI", 8), width=12, padx=4)
+    cust_toggle_btn = tk.Button(custom_key_frame, text="👁️ Show", command=toggle_cust_show, font=("Segoe UI", 8), padx=8)
     cust_toggle_btn.pack(side=tk.RIGHT, padx=(6, 0))
+
+    custom_key_entry = tk.Entry(custom_key_frame, font=("Segoe UI", 9), show="*")
+    custom_key_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    custom_key_entry.insert(0, os.getenv('CUSTOM_API_KEY', ''))
 
     tk.Label(custom_box, text="Model Name:", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
     c_model_row = tk.Frame(custom_box)
@@ -1292,6 +1293,66 @@ def show_settings_dialog(
 
     tk.Button(cust_test_row, text="⚡ Test Custom Connection", command=do_test_custom, font=("Segoe UI", 8), bg="#8e44ad", fg="white", padx=8).pack(side=tk.LEFT)
     cust_status_lbl.pack(side=tk.LEFT, padx=10)
+
+    # Failover / Auto-rotation Frame
+    failover_box = ttk.LabelFrame(tab_provider, text=" 🔄 Automatic Provider Failover & Rotation ", padding=10)
+    failover_box.pack(fill=tk.X, pady=(10, 6))
+
+    failover_var = tk.BooleanVar(value=settings_manager.get('enable_provider_failover', True))
+    failover_chk = ttk.Checkbutton(
+        failover_box,
+        text="Enable Automatic Provider Failover (Auto-rotate to backup provider on error / rate limit)",
+        variable=failover_var
+    )
+    failover_chk.pack(anchor=tk.W)
+
+    failover_desc = tk.Label(
+        failover_box,
+        text="When enabled, if the primary AI provider encounters an error, rate limit (HTTP 429), or timeout,\n"
+             "requests will automatically rotate to your configured alternate provider seamlessly.",
+        font=("Segoe UI", 8),
+        fg="#64748b",
+        justify=tk.LEFT
+    )
+    failover_desc.pack(anchor=tk.W, pady=(2, 6))
+
+    failover_status_lbl = tk.Label(
+        failover_box,
+        text="",
+        font=("Segoe UI", 8, "italic")
+    )
+    failover_status_lbl.pack(anchor=tk.W)
+
+    def update_failover_status(*_):
+        p = provider_var.get()
+        alt = 'custom' if p == 'gemini' else 'gemini'
+        if alt == 'gemini':
+            alt_ready = bool(gem_key_entry.get().strip() or os.getenv('GEMINI_API_KEY'))
+            alt_name = "Google Gemini"
+        else:
+            alt_ready = bool(
+                (custom_url_entry.get().strip() or os.getenv('CUSTOM_API_URL')) and
+                (custom_model_cb.get().strip() or os.getenv('CUSTOM_MODEL'))
+            )
+            alt_name = "Custom Local / Proxy"
+
+        if alt_ready:
+            failover_status_lbl.config(
+                text=f"✅ Backup provider ready: {alt_name}",
+                fg="#16a34a"
+            )
+        else:
+            failover_status_lbl.config(
+                text=f"⚠️ Backup provider ({alt_name}) not fully configured yet. Configure credentials above for automatic failover.",
+                fg="#d97706"
+            )
+
+    provider_var.trace_add("write", update_failover_status)
+    gem_key_entry.bind("<KeyRelease>", update_failover_status)
+    custom_url_entry.bind("<KeyRelease>", update_failover_status)
+    custom_model_cb.bind("<<ComboboxSelected>>", update_failover_status)
+    custom_model_cb.bind("<KeyRelease>", update_failover_status)
+    update_failover_status()
 
     # ========================================================
     # TAB 2: MODE & PROMPT (Scrollable, hidden scrollbar)
@@ -2013,6 +2074,7 @@ def show_settings_dialog(
             settings_manager.settings['save_screenshots'] = save_ss_var.get()
             settings_manager.settings['enable_mouse_gestures'] = enable_mouse_var.get()
             settings_manager.settings['enable_autofill'] = enable_autofill_var.get()
+            settings_manager.settings['enable_provider_failover'] = failover_var.get()
             try:
                 settings_manager.settings['autofill_click_delay_ms'] = int(af_delay_sb.get().strip())
             except Exception:

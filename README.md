@@ -29,6 +29,13 @@ A high-performance Windows desktop assistant that silently captures exam questio
   - **Dynamic Model Discovery**: One-click `[ 🔄 Fetch Models ]` live query directly from your API key or endpoint into combobox selection menus—no hardcoded models.
   - **Instant Hot-Switching**: Switch providers live via the Settings window without restarting the app.
 
+- 🔄 **Automatic Provider Failover & Rotation (Zero-Downtime Resilience)**:
+  - **Seamless Rate Limit / Quota Failover**: If your primary provider exhausts its token quota (HTTP 429 ResourceExhausted), times out, or encounters a server error, requests automatically rotate to your configured alternate provider (e.g., Gemini ➡️ Local Ollama/vLLM or vice versa) without dropping captured questions.
+  - **Uninterrupted Auto-Fill**: Automated clicking seamlessly continues even if a failover occurred mid-analysis.
+  - **HUD Transparency**: Badges automatically tag fallback results with `(Backup)` so you always know which model resolved your question.
+  - **Smart Token Conservation**: Bypasses rotation when a screenshot genuinely contains no questions (`NoQuestionsFoundError`), preserving alternate quota.
+  - **Configurable in Settings**: Easily toggled on or off with live backup readiness indicators in Tab 1 (AI Provider).
+
 - 📸 **Silent Background Processing**:
   - Activated by hotkey `Alt + Z` or optional middle-mouse scroll up.
   - **Zero auto-popups**: Processing runs completely silently in the background. Popups never appear unprompted during an exam.

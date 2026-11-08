@@ -209,6 +209,40 @@ class QuizAssistantApp:
         else:
             self.logger.info(f"Loaded valid credentials for provider '{self.config_manager.get('API_PROVIDER', 'gemini')}'")
 
+    def create_ai_client_for_provider(self, provider: str) -> Optional[BaseAIClient]:
+        """Create an AI client instance for a specific provider ('gemini' or 'custom')"""
+        mode = self.settings_manager.get('question_mode', 'multiple_choice')
+        ans_disp = self.settings_manager.get('answer_display_mode', 'letter_and_text')
+        provider = (provider or '').strip().lower()
+
+        if provider == 'custom':
+            custom_url = self.config_manager.get('CUSTOM_API_URL', 'http://localhost:11434/v1')
+            custom_key = self.config_manager.get('CUSTOM_API_KEY', '')
+            custom_model = self.config_manager.get('CUSTOM_MODEL', '')
+            if not custom_url or not custom_model:
+                return None
+            return CustomAPIClient(
+                api_url=custom_url,
+                api_key=custom_key,
+                model=custom_model,
+                logger=self.logger,
+                mode=mode,
+                answer_display_mode=ans_disp
+            )
+        elif provider == 'gemini':
+            gemini_key = self.config_manager.get('GEMINI_API_KEY', '')
+            gemini_model = self.config_manager.get('GEMINI_MODEL', '')
+            if not gemini_key:
+                return None
+            return GeminiAPIClient(
+                api_key=gemini_key,
+                logger=self.logger,
+                mode=mode,
+                model_name=gemini_model,
+                answer_display_mode=ans_disp
+            )
+        return None
+
     def _initialize_ai_client(self) -> None:
         """Initialize or dynamically re-initialize AI client based on current settings"""
         try:
@@ -217,37 +251,22 @@ class QuizAssistantApp:
             mode = self.settings_manager.get('question_mode', 'multiple_choice')
             ans_disp = self.settings_manager.get('answer_display_mode', 'letter_and_text')
 
-            if provider == 'custom':
-                custom_url = self.config_manager.get('CUSTOM_API_URL', 'http://localhost:11434/v1')
-                custom_key = self.config_manager.get('CUSTOM_API_KEY', '')
-                custom_model = self.config_manager.get('CUSTOM_MODEL', '')
-
-                self.ai_client = CustomAPIClient(
-                    api_url=custom_url,
-                    api_key=custom_key,
-                    model=custom_model,
-                    logger=self.logger,
-                    mode=mode,
-                    answer_display_mode=ans_disp
-                )
-                if hasattr(self, 'popup_manager') and self.popup_manager:
-                    self.popup_manager.set_provider_info(f"Custom ({custom_model or 'model'})", mode)
-                self.logger.info(f"Initialized Custom AI client: {custom_url} [{custom_model}] (mode: {mode}, ans_display: {ans_disp})")
-
+            client = self.create_ai_client_for_provider(provider)
+            if client:
+                self.ai_client = client
+                if provider == 'custom':
+                    custom_url = self.config_manager.get('CUSTOM_API_URL', 'http://localhost:11434/v1')
+                    custom_model = self.config_manager.get('CUSTOM_MODEL', '')
+                    if hasattr(self, 'popup_manager') and self.popup_manager:
+                        self.popup_manager.set_provider_info(f"Custom ({custom_model or 'model'})", mode)
+                    self.logger.info(f"Initialized Custom AI client: {custom_url} [{custom_model}] (mode: {mode}, ans_display: {ans_disp})")
+                else:
+                    gemini_model = self.config_manager.get('GEMINI_MODEL', '')
+                    if hasattr(self, 'popup_manager') and self.popup_manager:
+                        self.popup_manager.set_provider_info(f"Gemini ({gemini_model})", mode)
+                    self.logger.info(f"Initialized Gemini AI client [{gemini_model}] (mode: {mode}, ans_display: {ans_disp})")
             else:
-                gemini_key = self.config_manager.get('GEMINI_API_KEY', '')
-                gemini_model = self.config_manager.get('GEMINI_MODEL', '')
-
-                self.ai_client = GeminiAPIClient(
-                    api_key=gemini_key,
-                    logger=self.logger,
-                    mode=mode,
-                    model_name=gemini_model,
-                    answer_display_mode=ans_disp
-                )
-                if hasattr(self, 'popup_manager') and self.popup_manager:
-                    self.popup_manager.set_provider_info(f"Gemini ({gemini_model})", mode)
-                self.logger.info(f"Initialized Gemini AI client [{gemini_model}] (mode: {mode}, ans_display: {ans_disp})")
+                self.logger.warning(f"Could not initialize AI client for provider '{provider}': missing credentials")
 
         except Exception as e:
             self.logger.error(f"Failed to initialize AI client: {e}", exc_info=True)
@@ -451,10 +470,7 @@ class QuizAssistantApp:
         # 2. Cache miss: Call AI client
         self.logger.info(f"Processing screenshot via AI (req_id={req_id}, hash={img_hash[:16]}..., autofill={is_autofill})")
         try:
-            if not self.ai_client:
-                self._initialize_ai_client()
-
-            result = self.ai_client.analyze_quiz(image_bytes)
+            result = self._execute_ai_analysis_with_failover(image_bytes, req_id)
             self._handle_api_success(result, req_id, img_hash)
 
             if is_autofill and hasattr(self, 'autofill_manager') and self.autofill_manager.is_enabled():
@@ -483,6 +499,67 @@ class QuizAssistantApp:
             self.logger.error(f"API processing error: {e}", exc_info=True)
             self._latest_error = err_msg
             self.request_manager.set_error(err_msg)
+
+    def _execute_ai_analysis_with_failover(self, image_bytes: bytes, req_id: str) -> QuizResult:
+        """
+        Execute AI quiz analysis with automatic failover rotation.
+        If primary provider errors out (429 quota exhaustion, timeout, 503, connection error),
+        and failover is enabled, automatically routes the request to the configured alternate provider.
+        """
+        if not self.ai_client:
+            self._initialize_ai_client()
+        if not self.ai_client:
+            raise AIClientError("No AI client available. Please configure your API key or endpoint.")
+
+        primary_provider = self.config_manager.get('API_PROVIDER', 'gemini').strip().lower()
+        failover_enabled = self.settings_manager.get('enable_provider_failover', True)
+
+        try:
+            result = self.ai_client.analyze_quiz(image_bytes)
+            result.provider_name = "Gemini" if primary_provider == 'gemini' else "Custom Local"
+            result.is_fallback = False
+            return result
+        except NoQuestionsFoundError:
+            # Genuinely no questions found in image; do not waste tokens on backup
+            raise
+        except Exception as primary_error:
+            alt_provider = self.config_manager.get_alternate_provider(primary_provider) if failover_enabled else None
+            if not alt_provider:
+                self.logger.error(f"Primary provider '{primary_provider}' failed and no backup configured or failover disabled: {primary_error}")
+                raise
+
+            self.logger.warning(
+                f"⚠️ Primary provider '{primary_provider}' failed ({primary_error}). "
+                f"Automatically failing over to backup provider '{alt_provider}'..."
+            )
+            if hasattr(self, 'tray_manager') and self.tray_manager:
+                try:
+                    self.tray_manager.notify(
+                        "AI Provider Failover",
+                        f"Primary ({primary_provider}) failed. Auto-rotated to backup ({alt_provider})."
+                    )
+                except Exception:
+                    pass
+
+            backup_client = self.create_ai_client_for_provider(alt_provider)
+            if not backup_client:
+                raise primary_error
+
+            try:
+                result = backup_client.analyze_quiz(image_bytes)
+                backup_name = "Gemini" if alt_provider == 'gemini' else "Custom Local"
+                result.provider_name = f"{backup_name} (Backup)"
+                result.is_fallback = True
+                self.logger.info(f"✅ Auto-failover to backup provider '{alt_provider}' succeeded for request {req_id}!")
+                return result
+            except NoQuestionsFoundError:
+                raise
+            except Exception as backup_error:
+                self.logger.error(f"❌ Backup provider '{alt_provider}' also failed: {backup_error}")
+                raise AIClientError(
+                    f"Both primary ({primary_provider}: {str(primary_error)[:60]}) "
+                    f"and backup ({alt_provider}: {str(backup_error)[:60]}) failed."
+                ) from backup_error
 
     def _execute_autofill(self, result: QuizResult, capture_bbox: Optional[Tuple[int, int, int, int]] = None):
         """Execute automated answer clicking in background"""
@@ -514,8 +591,9 @@ class QuizAssistantApp:
         - SILENT: Does NOT automatically display popup UI! (User opens via hotkey)
         """
         try:
-            provider = self.config_manager.get('API_PROVIDER', 'gemini')
-            result.provider_name = "Gemini" if provider == 'gemini' else "Custom Local"
+            if not getattr(result, 'provider_name', None):
+                provider = self.config_manager.get('API_PROVIDER', 'gemini')
+                result.provider_name = "Gemini" if provider == 'gemini' else "Custom Local"
             result.mode = self.settings_manager.get('question_mode', 'multiple_choice')
 
             # Re-number questions sequentially based on history length!
