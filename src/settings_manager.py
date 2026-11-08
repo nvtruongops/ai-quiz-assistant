@@ -1381,11 +1381,10 @@ def show_settings_dialog(
 
     def update_color_ui(new_color: str):
         new_color = (new_color or "#ffffff").strip()
-        if not new_color.startswith('#'):
+        is_stealth = new_color.lower() in ('stealth', '#stealth', 'ghost', '#ghost')
+        if not is_stealth and not new_color.startswith('#'):
             new_color = f"#{new_color}"
         bg_color_var.set(new_color)
-        color_chip.config(bg=new_color)
-        color_val_lbl.config(text=f"Color Code: {new_color.upper()}")
 
         try:
             try:
@@ -1394,26 +1393,83 @@ def show_settings_dialog(
                 from src.popup_manager import get_popup_theme
             theme = get_popup_theme(new_color)
         except Exception:
-            theme = {'is_light': True, 'text': '#0f172a', 'bg': new_color, 'header_bg': '#f1f5f9', 'border': '#cbd5e1', 'question': '#0369a1', 'answer': '#15803d', 'badge_bg': '#e2e8f0', 'badge_fg': '#334155', 'close_fg': '#dc2626', 'copy_fg': '#1e293b'}
+            theme = {'is_light': True, 'text': '#0f172a', 'bg': '#ffffff' if is_stealth else new_color, 'header_bg': '#f1f5f9', 'border': '#cbd5e1', 'question': '#0369a1', 'answer': '#15803d', 'badge_bg': '#e2e8f0', 'badge_fg': '#334155', 'close_fg': '#dc2626', 'copy_fg': '#1e293b'}
 
-        if theme.get('is_light', True):
-            status_badge.config(text="⚪ Light Theme (Dark Text)", bg="#dbeafe", fg="#1e40af")
+        if is_stealth:
+            color_chip.config(bg="#ffffff")
+            color_val_lbl.config(text="Color Code: 👻 STEALTH (Ghost UI)")
+            status_badge.config(text="👻 Stealth / Ghost (Borderless, Muted Gray, Non-bold)", bg="#f4f4f5", fg="#52525b")
+            try:
+                # Auto-adjust font size to 8 for stealth
+                font_sb.delete(0, tk.END)
+                font_sb.insert(0, "8")
+                font_var.set(8)
+            except Exception:
+                pass
         else:
-            status_badge.config(text="🌑 Dark Theme (Light Text)", bg="#334155", fg="#f8fafc")
+            color_chip.config(bg=new_color)
+            color_val_lbl.config(text=f"Color Code: {new_color.upper()}")
+            if theme.get('is_light', True):
+                status_badge.config(text="⚪ Light Theme (Dark Text)", bg="#dbeafe", fg="#1e40af")
+            else:
+                status_badge.config(text="🌑 Dark Theme (Light Text)", bg="#334155", fg="#f8fafc")
 
         # Update Live Mini Preview Card
-        card_preview_outer.config(bg=theme.get('border', '#cbd5e1'))
+        is_st = theme.get('is_stealth', False)
+        card_preview_outer.config(
+            bg=theme.get('border', '#cbd5e1'),
+            bd=0 if is_st else 1,
+            relief=tk.FLAT if is_st else tk.SOLID
+        )
         card_preview_header.config(bg=theme.get('header_bg', '#f1f5f9'))
-        card_preview_title.config(bg=theme.get('header_bg', '#f1f5f9'), fg=theme.get('accent', '#0284c7'))
-        card_preview_badge1.config(bg=theme.get('badge_bg', '#e2e8f0'), fg=theme.get('badge_fg', '#334155'))
-        card_preview_badge2.config(bg=theme.get('badge_bg', '#e2e8f0'), fg=theme.get('badge_fg', '#334155'))
-        card_preview_copy.config(bg=theme.get('badge_bg', '#e2e8f0'), fg=theme.get('copy_fg', '#1e293b'))
-        card_preview_close.config(bg=theme.get('header_bg', '#f1f5f9'), fg=theme.get('close_fg', '#dc2626'))
+        card_preview_title.config(
+            bg=theme.get('header_bg', '#f1f5f9'),
+            fg=theme.get('accent', '#0284c7'),
+            font=("Segoe UI", 8, "normal" if is_st else "bold")
+        )
+        card_preview_badge1.config(
+            bg=theme.get('badge_bg', '#e2e8f0'),
+            fg=theme.get('badge_fg', '#334155'),
+            bd=0 if is_st else 1,
+            relief=tk.FLAT if is_st else tk.SOLID
+        )
+        card_preview_badge2.config(
+            bg=theme.get('badge_bg', '#e2e8f0'),
+            fg=theme.get('badge_fg', '#334155'),
+            bd=0 if is_st else 1,
+            relief=tk.FLAT if is_st else tk.SOLID
+        )
+        card_preview_copy.config(
+            bg=theme.get('badge_bg', '#e2e8f0'),
+            fg=theme.get('copy_fg', '#1e293b'),
+            bd=0 if is_st else 1,
+            relief=tk.FLAT if is_st else tk.SOLID,
+            font=("Segoe UI", 7, "normal" if is_st else "bold")
+        )
+        card_preview_close.config(
+            bg=theme.get('header_bg', '#f1f5f9'),
+            fg=theme.get('close_fg', '#dc2626'),
+            font=("Segoe UI", 8 if is_st else 9, "normal" if is_st else "bold")
+        )
 
         card_preview_body.config(bg=theme.get('bg', '#ffffff'))
-        card_preview_q.config(bg=theme.get('bg', '#ffffff'), fg=theme.get('question', '#0369a1'))
-        card_preview_a.config(bg=theme.get('bg', '#ffffff'), fg=theme.get('answer', '#15803d'))
-        card_preview_exp_btn.config(bg=theme.get('exp_btn_bg', '#e2e8f0'), fg=theme.get('exp_btn_fg', '#0284c7'))
+        card_preview_q.config(
+            bg=theme.get('bg', '#ffffff'),
+            fg=theme.get('question', '#0369a1'),
+            font=("Segoe UI", 8, "normal" if is_st else "bold")
+        )
+        card_preview_a.config(
+            bg=theme.get('bg', '#ffffff'),
+            fg=theme.get('answer', '#15803d'),
+            font=("Segoe UI", 8, "normal" if is_st else "bold")
+        )
+        card_preview_exp_btn.config(
+            bg=theme.get('exp_btn_bg', '#e2e8f0'),
+            fg=theme.get('exp_btn_fg', '#0284c7'),
+            bd=0 if is_st else 1,
+            relief=tk.FLAT if is_st else tk.SOLID,
+            font=("Segoe UI", 7, "normal" if is_st else "bold")
+        )
 
     def do_eyedropper():
         pick_color_at_cursor(dialog, update_color_ui)
@@ -1455,6 +1511,7 @@ def show_settings_dialog(
 
     presets = [
         ("⚪ White", "#ffffff"),
+        ("👻 Stealth (Tàng hình)", "stealth"),
         ("🌫️ Gray", "#f8fafc"),
         ("📜 Cream", "#fef9c3"),
         ("🌊 Blue", "#e0f2fe"),

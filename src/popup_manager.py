@@ -17,8 +17,31 @@ def get_popup_theme(bg_hex: str = "#ffffff") -> dict:
     """
     Generate complete cohesive theme colors based on the chosen background color.
     Ensures optimal contrast, readability, and modern aesthetic.
+    Supports special 'stealth' / 'ghost' preset for borderless, low-contrast ghost UI.
     """
-    bg_clean = (bg_hex or '#ffffff').lstrip('#')
+    bg_clean = (bg_hex or '#ffffff').strip().lower()
+    if bg_clean in ('stealth', '#stealth', 'ghost', '#ghost'):
+        return {
+            'bg': '#ffffff',
+            'header_bg': '#ffffff',
+            'border': '#ffffff',
+            'text': '#71717a',            # subtle muted slate gray
+            'question': '#71717a',        # subtle muted gray (no bold)
+            'answer': '#52525b',          # subtle gray-charcoal (no bold)
+            'badge_bg': '#ffffff',
+            'badge_fg': '#a1a1aa',
+            'accent': '#94a3b8',
+            'close_fg': '#a1a1aa',        # muted gray X (not bright red)
+            'copy_fg': '#a1a1aa',         # muted gray Copy
+            'exp_box_bg': '#ffffff',
+            'exp_box_fg': '#71717a',
+            'exp_btn_bg': '#ffffff',
+            'exp_btn_fg': '#94a3b8',
+            'is_light': True,
+            'is_stealth': True
+        }
+
+    bg_clean = bg_clean.lstrip('#')
     if len(bg_clean) != 6:
         bg_clean = 'ffffff'
     try:
@@ -400,6 +423,7 @@ class PopupManager:
 
         # Theme colors computed dynamically from popup_bg_color
         theme = get_popup_theme(popup_bg_color)
+        is_stealth = theme.get('is_stealth', False)
         BG_COLOR = theme['bg']
         HEADER_BG = theme['header_bg']
         BORDER_COLOR = theme['border']
@@ -418,17 +442,17 @@ class PopupManager:
         popup.attributes('-alpha', popup_opacity)
         popup.config(bg=BORDER_COLOR)
 
-        # Outer border container
-        outer_frame = tk.Frame(popup, bg=BORDER_COLOR, bd=1)
-        outer_frame.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
+        # Outer border container (borderless in stealth mode)
+        outer_frame = tk.Frame(popup, bg=BORDER_COLOR, bd=0 if is_stealth else 1)
+        outer_frame.pack(fill=tk.BOTH, expand=True, padx=0 if is_stealth else 1, pady=0 if is_stealth else 1)
 
         # 1. Top resize edge
-        top_edge = tk.Frame(outer_frame, bg=HEADER_BG, height=5, cursor="size_ns")
+        top_edge = tk.Frame(outer_frame, bg=HEADER_BG, height=3 if is_stealth else 5, cursor="size_ns")
         top_edge.pack(side=tk.TOP, fill=tk.X)
         top_edge.pack_propagate(False)
 
         # 2. Bottom status & resize bar (Pack side=BOTTOM first so it's guaranteed visible!)
-        bottom_bar = tk.Frame(outer_frame, bg=HEADER_BG, height=20)
+        bottom_bar = tk.Frame(outer_frame, bg=HEADER_BG, height=14 if is_stealth else 20)
         bottom_bar.pack(side=tk.BOTTOM, fill=tk.X)
         bottom_bar.pack_propagate(False)
 
@@ -437,20 +461,20 @@ class PopupManager:
         bl_grip.pack(side=tk.LEFT, fill=tk.Y)
         bl_grip.pack_propagate(False)
 
-        # Bottom-Right corner diagonal gripper (clearly visible, prominent)
+        # Bottom-Right corner diagonal gripper
         resize_grip = tk.Label(
             bottom_bar,
             text=" ◢ ",
-            font=("Segoe UI", 9, "bold"),
-            fg=ACCENT_COLOR,
+            font=("Segoe UI", 8 if is_stealth else 9, "normal" if is_stealth else "bold"),
+            fg="#ffffff" if is_stealth else ACCENT_COLOR,
             bg=HEADER_BG,
             cursor="size_nw_se",
             padx=4,
             pady=0
         )
         resize_grip.pack(side=tk.RIGHT, fill=tk.Y)
-        resize_grip.bind("<Enter>", lambda e: resize_grip.config(fg="#2563eb", bg=BADGE_BG) if resize_grip.winfo_exists() else None)
-        resize_grip.bind("<Leave>", lambda e: resize_grip.config(fg=ACCENT_COLOR, bg=HEADER_BG) if resize_grip.winfo_exists() else None)
+        resize_grip.bind("<Enter>", lambda e: resize_grip.config(fg="#a1a1aa" if is_stealth else "#2563eb", bg="#f4f4f5" if is_stealth else BADGE_BG) if resize_grip.winfo_exists() else None)
+        resize_grip.bind("<Leave>", lambda e: resize_grip.config(fg="#ffffff" if is_stealth else ACCENT_COLOR, bg=HEADER_BG) if resize_grip.winfo_exists() else None)
 
         # Bottom center edge
         bottom_edge = tk.Frame(bottom_bar, bg=HEADER_BG, cursor="size_ns")
@@ -461,12 +485,12 @@ class PopupManager:
         mid_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
         # Left resize edge
-        left_edge = tk.Frame(mid_container, bg=HEADER_BG, width=6, cursor="size_we")
+        left_edge = tk.Frame(mid_container, bg=HEADER_BG, width=4 if is_stealth else 6, cursor="size_we")
         left_edge.pack(side=tk.LEFT, fill=tk.Y)
         left_edge.pack_propagate(False)
 
         # Right resize edge
-        right_edge = tk.Frame(mid_container, bg=HEADER_BG, width=8, cursor="size_we")
+        right_edge = tk.Frame(mid_container, bg=HEADER_BG, width=4 if is_stealth else 8, cursor="size_we")
         right_edge.pack(side=tk.RIGHT, fill=tk.Y)
         right_edge.pack_propagate(False)
 
@@ -475,7 +499,7 @@ class PopupManager:
         main_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # --- HEADER BAR ---
-        header_frame = tk.Frame(main_frame, bg=HEADER_BG, height=36, padx=8, pady=4)
+        header_frame = tk.Frame(main_frame, bg=HEADER_BG, height=28 if is_stealth else 36, padx=6 if is_stealth else 8, pady=2 if is_stealth else 4)
         header_frame.pack(fill=tk.X, side=tk.TOP)
 
         # Drag handler
@@ -518,11 +542,11 @@ class PopupManager:
         close_btn = make_header_btn(
             right_frame,
             text=" ✕ ",
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", 8 if is_stealth else 10, "normal" if is_stealth else "bold"),
             fg=CLOSE_FG,
             bg=HEADER_BG,
-            active_bg="#fee2e2" if theme.get('is_light', True) else "#450a0a",
-            padx=4,
+            active_bg="#f4f4f5" if is_stealth else ("#fee2e2" if theme.get('is_light', True) else "#450a0a"),
+            padx=3 if is_stealth else 4,
             pady=0
         )
         close_btn.pack(side=tk.RIGHT, padx=(2, 0))
@@ -532,12 +556,12 @@ class PopupManager:
         copy_btn = make_header_btn(
             right_frame,
             text="📋 Copy",
-            font=("Segoe UI", 8, "bold"),
+            font=("Segoe UI", 7 if is_stealth else 8, "normal" if is_stealth else "bold"),
             fg=COPY_FG,
             bg=BADGE_BG,
-            active_bg="#e2e8f0" if theme.get('is_light', True) else ACCENT_COLOR,
-            padx=6,
-            pady=2
+            active_bg="#f4f4f5" if is_stealth else ("#e2e8f0" if theme.get('is_light', True) else ACCENT_COLOR),
+            padx=4 if is_stealth else 6,
+            pady=1 if is_stealth else 2
         )
         copy_btn.pack(side=tk.RIGHT, padx=(2, 3))
         copy_btn.bind("<Button-1>", lambda e: self._copy_to_clipboard(content, copy_btn))
@@ -546,12 +570,12 @@ class PopupManager:
         reload_btn = make_header_btn(
             right_frame,
             text="🔄",
-            font=("Segoe UI", 8),
+            font=("Segoe UI", 7 if is_stealth else 8),
             fg=ACCENT_COLOR,
             bg=BADGE_BG,
-            active_bg="#e2e8f0" if theme.get('is_light', True) else ACCENT_COLOR,
-            padx=5,
-            pady=2
+            active_bg="#f4f4f5" if is_stealth else ("#e2e8f0" if theme.get('is_light', True) else ACCENT_COLOR),
+            padx=4 if is_stealth else 5,
+            pady=1 if is_stealth else 2
         )
         reload_btn.pack(side=tk.RIGHT, padx=1)
         if hasattr(self, 'on_nav_reload') and self.on_nav_reload:
@@ -563,24 +587,24 @@ class PopupManager:
             next_btn = make_header_btn(
                 right_frame,
                 text=" ▼ ",
-                font=("Segoe UI", 8, "bold"),
+                font=("Segoe UI", 7 if is_stealth else 8, "normal" if is_stealth else "bold"),
                 fg=BADGE_FG,
                 bg=BADGE_BG,
-                active_bg="#e2e8f0" if theme.get('is_light', True) else ACCENT_COLOR,
-                padx=4,
-                pady=2
+                active_bg="#f4f4f5" if is_stealth else ("#e2e8f0" if theme.get('is_light', True) else ACCENT_COLOR),
+                padx=3 if is_stealth else 4,
+                pady=1 if is_stealth else 2
             )
             next_btn.pack(side=tk.RIGHT, padx=1)
 
             prev_btn = make_header_btn(
                 right_frame,
                 text=" ▲ ",
-                font=("Segoe UI", 8, "bold"),
+                font=("Segoe UI", 7 if is_stealth else 8, "normal" if is_stealth else "bold"),
                 fg=BADGE_FG,
                 bg=BADGE_BG,
-                active_bg="#e2e8f0" if theme.get('is_light', True) else ACCENT_COLOR,
-                padx=4,
-                pady=2
+                active_bg="#f4f4f5" if is_stealth else ("#e2e8f0" if theme.get('is_light', True) else ACCENT_COLOR),
+                padx=3 if is_stealth else 4,
+                pady=1 if is_stealth else 2
             )
             prev_btn.pack(side=tk.RIGHT, padx=1)
 
@@ -588,12 +612,12 @@ class PopupManager:
         save_size_btn = make_header_btn(
             right_frame,
             text="💾 Save Size",
-            font=("Segoe UI", 8, "bold"),
-            fg="#ffffff",
-            bg="#0284c7",
-            active_bg="#0369a1",
-            padx=6,
-            pady=2
+            font=("Segoe UI", 7 if is_stealth else 8, "normal" if is_stealth else "bold"),
+            fg="#71717a" if is_stealth else "#ffffff",
+            bg="#f4f4f5" if is_stealth else "#0284c7",
+            active_bg="#e4e4e7" if is_stealth else "#0369a1",
+            padx=4 if is_stealth else 6,
+            pady=1 if is_stealth else 2
         )
 
         # LEFT TITLE & BADGE CONTAINER
@@ -602,12 +626,12 @@ class PopupManager:
         left_frame.bind("<Button-1>", start_drag)
         left_frame.bind("<B1-Motion>", do_drag)
 
-        title_icon = "📖" if is_history else "🎯"
+        title_icon = "" if is_stealth else ("📖 " if is_history else "🎯 ")
         clean_title = title.replace("📖", "").replace("🎯", "").strip()
         title_label = tk.Label(
             left_frame,
-            text=f"{title_icon} {clean_title}",
-            font=("Segoe UI", 9, "bold"),
+            text=f"{title_icon}{clean_title}",
+            font=("Segoe UI", 8 if is_stealth else 9, "normal" if is_stealth else "bold"),
             bg=HEADER_BG,
             fg=ACCENT_COLOR,
             cursor="fleur"
@@ -625,10 +649,10 @@ class PopupManager:
             chip_badge = tk.Label(
                 left_frame,
                 text=chip_text,
-                font=("Segoe UI", 8),
+                font=("Segoe UI", 7),
                 bg=BADGE_BG,
                 fg=BADGE_FG,
-                padx=5,
+                padx=4 if is_stealth else 5,
                 pady=1,
                 bd=0,
                 relief=tk.FLAT
@@ -657,14 +681,18 @@ class PopupManager:
         )
         text_widget.pack(fill=tk.BOTH, expand=True)
 
-        # Configure style tags with dynamic theme colors
-        text_widget.tag_configure("question", font=("Segoe UI", font_size, "bold"), foreground=QUESTION_COLOR, spacing1=4, spacing3=1)
-        text_widget.tag_configure("answer_line", font=("Segoe UI", font_size, "bold"), foreground=ANSWER_COLOR, spacing3=3)
-        text_widget.tag_configure("essay_ans", font=("Segoe UI", font_size), foreground=ANSWER_COLOR, spacing1=2, spacing3=4)
-        text_widget.tag_configure("pending_title", font=("Segoe UI", font_size, "bold"), foreground="#d97706", spacing1=4, spacing3=1)
-        text_widget.tag_configure("pending_ans", font=("Segoe UI", font_size, "italic"), foreground="#d97706", spacing3=4)
-        text_widget.tag_configure("error", font=("Segoe UI", font_size), foreground=CLOSE_FG)
-        text_widget.tag_configure("normal", font=("Segoe UI", font_size), foreground=TEXT_COLOR)
+        # Configure style tags with dynamic theme colors (non-bold in stealth mode)
+        q_weight = "normal" if is_stealth else "bold"
+        ans_weight = "normal" if is_stealth else "bold"
+        pending_weight = "normal" if is_stealth else "bold"
+
+        text_widget.tag_configure("question", font=("Segoe UI", font_size, q_weight), foreground=QUESTION_COLOR, spacing1=3 if is_stealth else 4, spacing3=1)
+        text_widget.tag_configure("answer_line", font=("Segoe UI", font_size, ans_weight), foreground=ANSWER_COLOR, spacing3=2 if is_stealth else 3)
+        text_widget.tag_configure("essay_ans", font=("Segoe UI", font_size, "normal"), foreground=ANSWER_COLOR, spacing1=2, spacing3=3 if is_stealth else 4)
+        text_widget.tag_configure("pending_title", font=("Segoe UI", font_size, pending_weight), foreground=QUESTION_COLOR if is_stealth else "#d97706", spacing1=3 if is_stealth else 4, spacing3=1)
+        text_widget.tag_configure("pending_ans", font=("Segoe UI", font_size, "italic"), foreground=TEXT_COLOR if is_stealth else "#d97706", spacing3=3 if is_stealth else 4)
+        text_widget.tag_configure("error", font=("Segoe UI", font_size, "normal"), foreground=CLOSE_FG)
+        text_widget.tag_configure("normal", font=("Segoe UI", font_size, "normal"), foreground=TEXT_COLOR)
 
         # Mouse wheel support
         def on_mousewheel(event):
@@ -764,7 +792,10 @@ class PopupManager:
             nonlocal saved_w, saved_h
             saved_w = cur_w
             saved_h = cur_h
-            save_size_btn.config(text="✓ Saved!", bg="#10b981", fg="#ffffff")
+            if is_stealth:
+                save_size_btn.config(text="✓ Saved!", bg="#f4f4f5", fg="#71717a")
+            else:
+                save_size_btn.config(text="✓ Saved!", bg="#10b981", fg="#ffffff")
             popup.after(1400, lambda: save_size_btn.pack_forget() if save_size_btn.winfo_exists() and abs(popup.winfo_width() - saved_w) <= 15 and abs(popup.winfo_height() - saved_h) <= 15 else None)
             return "break"
 
@@ -774,7 +805,10 @@ class PopupManager:
             diff_w = abs(w - saved_w) > 15
             diff_h = (saved_h > 0 and abs(h - saved_h) > 15) or (saved_h == 0 and abs(h - initial_calc_h) > 15)
             if diff_w or diff_h:
-                save_size_btn.config(text=f"💾 Save Size ({w}x{h})", bg="#0284c7", fg="#ffffff")
+                if is_stealth:
+                    save_size_btn.config(text=f"💾 Save ({w}x{h})", bg="#f4f4f5", fg="#71717a")
+                else:
+                    save_size_btn.config(text=f"💾 Save Size ({w}x{h})", bg="#0284c7", fg="#ffffff")
                 if not save_size_btn.winfo_ismapped():
                     save_size_btn.pack(side=tk.RIGHT, padx=2)
             else:
@@ -921,6 +955,7 @@ class PopupManager:
         else:
             theme = get_popup_theme(str(theme_or_bg or "#ffffff"))
 
+        is_stealth = theme.get('is_stealth', False)
         bg_color = theme['bg']
         exp_box_bg = theme['exp_box_bg']
         exp_box_fg = theme['exp_box_fg']
@@ -948,7 +983,8 @@ class PopupManager:
 
             # Pending/Queue item in history
             if is_pending:
-                text_widget.insert(tk.END, f"⏳ Question {num}: {disp_q}\n", "pending_title")
+                p_icon = "" if is_stealth else "⏳ "
+                text_widget.insert(tk.END, f"{p_icon}Question {num}: {disp_q}\n", "pending_title")
                 text_widget.insert(tk.END, f"   → {ans_text}\n\n", "pending_ans")
                 continue
 
@@ -969,15 +1005,15 @@ class PopupManager:
                 exp_box = tk.Label(
                     exp_container,
                     text=f"💡 Explanation:\n{exp_text}",
-                    font=("Segoe UI", max(8, font_size - 1)),
+                    font=("Segoe UI", max(8, font_size - 1), "normal"),
                     fg=exp_box_fg,
                     bg=exp_box_bg,
                     justify=tk.LEFT,
                     wraplength=max(280, popup_width - 60),
                     padx=10,
                     pady=6,
-                    bd=1,
-                    relief=tk.SOLID
+                    bd=0 if is_stealth else 1,
+                    relief=tk.FLAT if is_stealth else tk.SOLID
                 )
 
                 def make_toggle(box, t_btn):
@@ -998,14 +1034,14 @@ class PopupManager:
                 t_btn = tk.Label(
                     btn_bar,
                     text="💡 View Explanation",
-                    font=("Segoe UI", 8, "bold"),
+                    font=("Segoe UI", 7 if is_stealth else 8, "normal" if is_stealth else "bold"),
                     bg=exp_btn_bg,
                     fg=exp_btn_fg,
                     cursor="hand2",
-                    padx=7,
-                    pady=2,
-                    bd=1,
-                    relief=tk.SOLID
+                    padx=5 if is_stealth else 7,
+                    pady=1 if is_stealth else 2,
+                    bd=0 if is_stealth else 1,
+                    relief=tk.FLAT if is_stealth else tk.SOLID
                 )
                 t_btn.pack(side=tk.LEFT, padx=(0, 6))
                 t_btn.bind("<Button-1>", make_toggle(exp_box, t_btn))
@@ -1013,15 +1049,17 @@ class PopupManager:
                 c_btn = tk.Label(
                     btn_bar,
                     text="📋 Copy Explanation",
-                    font=("Segoe UI", 8),
+                    font=("Segoe UI", 7 if is_stealth else 8, "normal"),
                     bg=exp_btn_bg,
                     fg=text_color,
                     cursor="hand2",
-                    padx=7,
-                    pady=2,
-                    bd=1,
-                    relief=tk.SOLID
+                    padx=5 if is_stealth else 7,
+                    pady=1 if is_stealth else 2,
+                    bd=0 if is_stealth else 1,
+                    relief=tk.FLAT if is_stealth else tk.SOLID
                 )
+                c_btn.pack(side=tk.LEFT)
+                c_btn.bind("<Button-1>", make_copy(exp_text, c_btn))
                 c_btn.pack(side=tk.LEFT)
                 c_btn.bind("<Button-1>", make_copy(exp_text, c_btn))
 

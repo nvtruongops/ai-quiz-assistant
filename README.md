@@ -58,6 +58,7 @@ A high-performance Windows desktop assistant that silently captures exam questio
   - **Dynamic Size Memory**: A dynamic `💾 Save Size` button appears when resized, allowing you to persist your custom width and height across sessions.
   - **Built-in Screen Eyedropper**: Sample any screen pixel to match HUD background color with exam portal themes.
   - **Smart Contrast Engine**: Automatically calculates WCAG-compliant text, border, and badge colors for light and dark themes.
+  - **Quick HUD Presets**: One-click styling including `White`, `Gray`, `Cream`, `Blue`, `Dark`, and `👻 Stealth / Ghost (Tàng hình)` (borderless, pure white matching, muted slate-gray text, and non-bold font for ultra-discreet viewing).
   - Frameless, draggable, mouse-wheel scrollable, with configurable window width, font size, and opacity (50% - 100%).
 
 - ⌨️ **Fully Configurable Shortcuts**:

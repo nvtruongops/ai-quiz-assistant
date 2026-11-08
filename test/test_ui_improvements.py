@@ -110,6 +110,49 @@ class TestUIImprovements(unittest.TestCase):
         pm.hide()
         root.destroy()
 
+    def test_popup_theme_stealth(self):
+        """Verify stealth / ghost theme returns borderless white palette with muted non-bold text"""
+        for stealth_key in ['stealth', '#stealth', 'ghost', '#ghost', 'STEALTH']:
+            theme = get_popup_theme(stealth_key)
+            self.assertTrue(theme.get('is_stealth'), f"Failed for key {stealth_key}")
+            self.assertTrue(theme.get('is_light'))
+            self.assertEqual(theme['bg'], '#ffffff')
+            self.assertEqual(theme['header_bg'], '#ffffff')
+            self.assertEqual(theme['border'], '#ffffff')
+            self.assertEqual(theme['text'], '#71717a')
+            self.assertEqual(theme['question'], '#71717a')
+            self.assertEqual(theme['answer'], '#52525b')
+            self.assertEqual(theme['close_fg'], '#a1a1aa')
+
+    def test_popup_rendering_with_stealth_theme(self):
+        """Verify PopupManager properly builds borderless stealth HUD with font size 8"""
+        root = tk.Tk()
+        root.withdraw()
+
+        pm = PopupManager(settings={'popup_bg_color': 'stealth', 'font_size': 8, 'popup_width': 380})
+        pm.root = root
+
+        q = QuizQuestion(
+            number="1",
+            question="Thủ đô của Việt Nam là gì?",
+            answer="A. Hà Nội",
+            explanation="Hà Nội là thủ đô."
+        )
+
+        pm._create_popup_internal(
+            content="Câu 1: Thủ đô của Việt Nam là gì?\n→ Đáp án: A. Hà Nội",
+            title="Stealth HUD",
+            provider="Gemini",
+            mode="Trắc nghiệm",
+            questions=[q]
+        )
+
+        self.assertIsNotNone(pm.current_popup)
+        self.assertEqual(pm.current_popup.cget('bg'), '#ffffff')
+        self.assertEqual(pm.current_popup.winfo_exists(), 1)
+        pm.hide()
+        root.destroy()
+
 
 if __name__ == '__main__':
     unittest.main()
