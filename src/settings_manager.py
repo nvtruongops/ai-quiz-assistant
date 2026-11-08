@@ -459,7 +459,7 @@ def show_initial_setup_dialog(
             gemini_key_entry.config(show='*')
             toggle_g_btn.config(text="👁️ Show")
 
-    toggle_g_btn = tk.Button(g_key_box, text="👁️ Show", command=toggle_g_key, width=11, padx=4, font=("Segoe UI", 8))
+    toggle_g_btn = tk.Button(g_key_box, text="👁️ Show", command=toggle_g_key, width=12, padx=4, font=("Segoe UI", 8))
     toggle_g_btn.pack(side=tk.LEFT, padx=(6, 0))
 
     tk.Label(gemini_frame, text="Gemini Model:", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
@@ -594,7 +594,7 @@ def show_initial_setup_dialog(
             custom_key_entry.config(show='*')
             toggle_c_btn.config(text="👁️ Show")
 
-    toggle_c_btn = tk.Button(c_key_box, text="👁️ Show", command=toggle_c_key, width=11, padx=4, font=("Segoe UI", 8))
+    toggle_c_btn = tk.Button(c_key_box, text="👁️ Show", command=toggle_c_key, width=12, padx=4, font=("Segoe UI", 8))
     toggle_c_btn.pack(side=tk.LEFT, padx=(6, 0))
 
     tk.Label(custom_frame, text="Model Name (Vision-capable):", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
@@ -1073,7 +1073,7 @@ def show_settings_dialog(
             gem_key_entry.config(show='*')
             gem_toggle_btn.config(text="👁️ Show")
 
-    gem_toggle_btn = tk.Button(gem_key_frame, text="👁️ Show", command=toggle_gem_show, font=("Segoe UI", 8), width=11, padx=4)
+    gem_toggle_btn = tk.Button(gem_key_frame, text="👁️ Show", command=toggle_gem_show, font=("Segoe UI", 8), width=12, padx=4)
     gem_toggle_btn.pack(side=tk.RIGHT, padx=(6, 0))
 
     tk.Label(gemini_box, text="Gemini Model:", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
@@ -1194,7 +1194,7 @@ def show_settings_dialog(
             custom_key_entry.config(show='*')
             cust_toggle_btn.config(text="👁️ Show")
 
-    cust_toggle_btn = tk.Button(custom_key_frame, text="👁️ Show", command=toggle_cust_show, font=("Segoe UI", 8), width=11, padx=4)
+    cust_toggle_btn = tk.Button(custom_key_frame, text="👁️ Show", command=toggle_cust_show, font=("Segoe UI", 8), width=12, padx=4)
     cust_toggle_btn.pack(side=tk.RIGHT, padx=(6, 0))
 
     tk.Label(custom_box, text="Model Name:", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
