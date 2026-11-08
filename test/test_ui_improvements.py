@@ -153,6 +153,20 @@ class TestUIImprovements(unittest.TestCase):
         pm.hide()
         root.destroy()
 
+    def test_settings_dialog_initialization_with_stealth(self):
+        """Verify show_settings_dialog initializes cleanly with popup_bg_color='stealth' without TclError"""
+        from settings_manager import show_settings_dialog
+        sm = SettingsManager()
+        sm.settings['popup_bg_color'] = 'stealth'
+
+        def mock_mainloop(dlg_self):
+            dlg_self.update_idletasks()
+            dlg_self.destroy()
+
+        with unittest.mock.patch.object(tk.Tk, 'mainloop', mock_mainloop):
+            # Must not raise _tkinter.TclError: unknown color name "stealth"
+            show_settings_dialog(sm)
+
 
 if __name__ == '__main__':
     unittest.main()

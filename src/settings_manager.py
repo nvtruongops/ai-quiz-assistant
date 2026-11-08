@@ -1351,6 +1351,7 @@ def show_settings_dialog(
     color_box.pack(fill=tk.X, pady=(0, 10))
 
     cur_bg_color = settings_manager.get('popup_bg_color', '#ffffff')
+    is_initial_stealth = str(cur_bg_color).strip().lower() in ('stealth', '#stealth', 'ghost', '#ghost')
     bg_color_var = tk.StringVar(master=dialog, value=cur_bg_color)
 
     tk.Label(
@@ -1365,14 +1366,19 @@ def show_settings_dialog(
     ctrl_row = tk.Frame(color_box, bg="#ffffff", bd=1, relief=tk.SOLID, padx=8, pady=8)
     ctrl_row.pack(fill=tk.X, pady=(0, 8))
 
-    color_chip = tk.Frame(ctrl_row, width=32, height=32, bg=cur_bg_color, bd=1, relief=tk.SOLID)
+    initial_chip_bg = '#ffffff'
+    if not is_initial_stealth and str(cur_bg_color).startswith('#') and len(str(cur_bg_color)) in (4, 7):
+        initial_chip_bg = cur_bg_color
+
+    color_chip = tk.Frame(ctrl_row, width=32, height=32, bg=initial_chip_bg, bd=1, relief=tk.SOLID)
     color_chip.pack(side=tk.LEFT, padx=(0, 8))
     color_chip.pack_propagate(False)
 
     code_box = tk.Frame(ctrl_row, bg="#ffffff")
     code_box.pack(side=tk.LEFT, padx=(0, 12))
 
-    color_val_lbl = tk.Label(code_box, text=f"Color Code: {cur_bg_color.upper()}", font=("Consolas", 10, "bold"), bg="#ffffff", fg="#0f172a")
+    init_code_text = "Color Code: 👻 STEALTH (Ghost UI)" if is_initial_stealth else f"Color Code: {str(cur_bg_color).upper()}"
+    color_val_lbl = tk.Label(code_box, text=init_code_text, font=("Consolas", 10, "bold"), bg="#ffffff", fg="#0f172a")
     color_val_lbl.pack(anchor=tk.W)
 
     status_badge = tk.Label(code_box, text="", font=("Segoe UI", 8, "bold"), padx=6, pady=1)
@@ -1406,7 +1412,11 @@ def show_settings_dialog(
             except Exception:
                 pass
         else:
-            color_chip.config(bg=new_color)
+            safe_chip_bg = new_color if (new_color.startswith('#') and len(new_color) in (4, 7)) else '#ffffff'
+            try:
+                color_chip.config(bg=safe_chip_bg)
+            except Exception:
+                color_chip.config(bg='#ffffff')
             color_val_lbl.config(text=f"Color Code: {new_color.upper()}")
             if theme.get('is_light', True):
                 status_badge.config(text="⚪ Light Theme (Dark Text)", bg="#dbeafe", fg="#1e40af")
@@ -1474,7 +1484,10 @@ def show_settings_dialog(
         pick_color_at_cursor(dialog, update_color_ui)
 
     def do_palette():
-        chosen = colorchooser.askcolor(color=bg_color_var.get(), parent=dialog, title="Select HUD Background Color")[1]
+        init_c = bg_color_var.get()
+        if not init_c or not init_c.startswith('#') or len(init_c) not in (4, 7):
+            init_c = "#ffffff"
+        chosen = colorchooser.askcolor(color=init_c, parent=dialog, title="Select HUD Background Color")[1]
         if chosen:
             update_color_ui(chosen)
 
