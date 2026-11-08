@@ -8,8 +8,16 @@ import os
 from typing import Optional
 from logging.handlers import RotatingFileHandler
 
-_src_dir = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(_src_dir)
+try:
+    from path_utils import get_app_dir
+    PROJECT_ROOT = get_app_dir()
+except ImportError:
+    try:
+        from src.path_utils import get_app_dir
+        PROJECT_ROOT = get_app_dir()
+    except ImportError:
+        _src_dir = os.path.dirname(os.path.abspath(__file__))
+        PROJECT_ROOT = os.path.dirname(_src_dir)
 
 
 class Logger:

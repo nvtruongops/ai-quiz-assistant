@@ -14,8 +14,30 @@ import tkinter as tk
 from tkinter import ttk, messagebox, colorchooser
 from typing import Optional, Dict, Any, Callable
 
-_src_dir = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(_src_dir)
+try:
+    from path_utils import get_app_dir, get_resource_path
+    PROJECT_ROOT = get_app_dir()
+except ImportError:
+    try:
+        from src.path_utils import get_app_dir, get_resource_path
+        PROJECT_ROOT = get_app_dir()
+    except ImportError:
+        _src_dir = os.path.dirname(os.path.abspath(__file__))
+        PROJECT_ROOT = os.path.dirname(_src_dir)
+        def get_resource_path(p=""): return os.path.join(PROJECT_ROOT, p)
+
+try:
+    from constants import GOOGLE_AI_STUDIO_API_KEY_URL, DEFAULT_LOCAL_ENDPOINT_URL, DEFAULT_LOCAL_VISION_MODEL, GITHUB_REPO_URL, DOCUMENTATION_URL, GITHUB_ISSUES_URL
+except ImportError:
+    try:
+        from src.constants import GOOGLE_AI_STUDIO_API_KEY_URL, DEFAULT_LOCAL_ENDPOINT_URL, DEFAULT_LOCAL_VISION_MODEL, GITHUB_REPO_URL, DOCUMENTATION_URL, GITHUB_ISSUES_URL
+    except ImportError:
+        GOOGLE_AI_STUDIO_API_KEY_URL = "https://aistudio.google.com/app/apikey"
+        DEFAULT_LOCAL_ENDPOINT_URL = "http://localhost:11434/v1"
+        DEFAULT_LOCAL_VISION_MODEL = "llama3.2-vision"
+        GITHUB_REPO_URL = "https://github.com/nvtruongops/ai-quiz-assistant"
+        DOCUMENTATION_URL = "https://github.com/nvtruongops/ai-quiz-assistant#readme"
+        GITHUB_ISSUES_URL = "https://github.com/nvtruongops/ai-quiz-assistant/issues"
 
 # Default application settings
 DEFAULT_SETTINGS = {
@@ -405,10 +427,10 @@ def show_initial_setup_dialog(
     root.resizable(True, True)
 
     # Set modern app window icon
-    ico_path = os.path.join(PROJECT_ROOT, "assets", "icon.ico")
+    ico_path = get_resource_path(os.path.join("assets", "icon.ico"))
     if not os.path.exists(ico_path):
-        ico_path = os.path.join(PROJECT_ROOT, "icon.ico")
-    png_path = os.path.join(PROJECT_ROOT, "assets", "icon.png")
+        ico_path = get_resource_path("icon.ico")
+    png_path = get_resource_path(os.path.join("assets", "icon.png"))
     if os.path.exists(ico_path):
         try:
             root.iconbitmap(ico_path)
@@ -1541,10 +1563,10 @@ def show_settings_dialog(
     dialog.title("Settings - AI Quiz Assistant 2.0")
 
     # Set modern app window icon
-    ico_path = os.path.join(PROJECT_ROOT, "assets", "icon.ico")
+    ico_path = get_resource_path(os.path.join("assets", "icon.ico"))
     if not os.path.exists(ico_path):
-        ico_path = os.path.join(PROJECT_ROOT, "icon.ico")
-    png_path = os.path.join(PROJECT_ROOT, "assets", "icon.png")
+        ico_path = get_resource_path("icon.ico")
+    png_path = get_resource_path(os.path.join("assets", "icon.png"))
     if os.path.exists(ico_path):
         try:
             dialog.iconbitmap(ico_path)
@@ -2647,7 +2669,7 @@ def show_settings_dialog(
     brand_row = tk.Frame(about_box, bg="#f8fafc")
     brand_row.pack(fill=tk.X)
 
-    icon_48_path = os.path.join(PROJECT_ROOT, "assets", "icon_48.png")
+    icon_48_path = get_resource_path(os.path.join("assets", "icon_48.png"))
     if os.path.exists(icon_48_path):
         try:
             about_icon_img = tk.PhotoImage(file=icon_48_path)
@@ -2663,6 +2685,28 @@ def show_settings_dialog(
     tk.Label(info_col, text="AI Quiz Assistant 2.0", font=("Segoe UI", 11, "bold"), fg="#0284c7", bg="#f8fafc").pack(anchor=tk.W)
     tk.Label(info_col, text="Smart AI Quiz Assistant • Silent Background Processing", font=("Segoe UI", 8), fg="#64748b", bg="#f8fafc").pack(anchor=tk.W, pady=(1, 3))
     tk.Label(info_col, text="Supports Google Gemini & Custom OpenAI-compatible API", font=("Segoe UI", 8), fg="#475569", bg="#f8fafc").pack(anchor=tk.W)
+
+    links_row = tk.Frame(info_col, bg="#f8fafc")
+    links_row.pack(anchor=tk.W, pady=(6, 0))
+
+    def _open_url(u):
+        try:
+            import webbrowser
+            webbrowser.open_new_tab(u)
+        except Exception:
+            pass
+
+    repo_btn = tk.Label(links_row, text="🌐 GitHub Repo", font=("Segoe UI", 8, "underline"), fg="#0284c7", bg="#f8fafc", cursor="hand2")
+    repo_btn.pack(side=tk.LEFT, padx=(0, 10))
+    repo_btn.bind("<Button-1>", lambda e: _open_url(GITHUB_REPO_URL))
+
+    docs_btn = tk.Label(links_row, text="📖 Documentation", font=("Segoe UI", 8, "underline"), fg="#0284c7", bg="#f8fafc", cursor="hand2")
+    docs_btn.pack(side=tk.LEFT, padx=(0, 10))
+    docs_btn.bind("<Button-1>", lambda e: _open_url(DOCUMENTATION_URL))
+
+    issue_btn = tk.Label(links_row, text="💬 Report Issue", font=("Segoe UI", 8, "underline"), fg="#0284c7", bg="#f8fafc", cursor="hand2")
+    issue_btn.pack(side=tk.LEFT)
+    issue_btn.bind("<Button-1>", lambda e: _open_url(GITHUB_ISSUES_URL))
 
     # Global MouseWheel Scroll for active tab
     def on_dialog_mousewheel(event):

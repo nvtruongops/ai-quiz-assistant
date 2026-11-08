@@ -188,14 +188,46 @@ python test/test_scaling_and_folder_opening.py
 
 ## 📦 Building Standalone Executable (.EXE)
 
-To bundle the application into a standalone Windows `.exe` using PyInstaller:
+AI Quiz Assistant provides an automated production build pipeline that compiles the app into a single standalone Windows executable (`QuizAssistant.exe`) with all dependencies, assets, and version metadata bundled.
 
+### Option 1: One-Click Build Script (Recommended)
+Simply run the included build script:
 ```bash
-pip install pyinstaller
-pyinstaller QuizAssistant.spec
+# Via Windows Command Prompt or PowerShell:
+build.bat
+
+# Or directly via Python:
+python build_exe.py
 ```
 
-The resulting executable will be generated at `dist/QuizAssistant.exe`.
+The automated pipeline will:
+1. Verify required prerequisites and PyInstaller installation.
+2. Clean old compilation artifacts.
+3. Compile `run.pyw` into `dist/QuizAssistant.exe` with bundled icons and Version 2.0 metadata.
+4. Assemble a portable release package under `dist/AI-Quiz-Assistant-v2.0/`.
+5. Generate a ready-to-distribute ZIP archive `dist/AI-Quiz-Assistant-v2.0-Windows.zip`.
+6. Output SHA-256 integrity checksums to `dist/SHA256SUMS.txt`.
+
+### Option 2: Manual PyInstaller Build
+```bash
+pip install pyinstaller
+pyinstaller --clean --noconfirm QuizAssistant.spec
+```
+The compiled binary will be generated at `dist/QuizAssistant.exe`.
+
+---
+
+## 🌐 Official Production URLs & Endpoints
+
+| Resource | Official Production URL | Description |
+|---|---|---|
+| **GitHub Repository** | [github.com/nvtruongops/ai-quiz-assistant](https://github.com/nvtruongops/ai-quiz-assistant) | Source code, updates, and branch management |
+| **Releases & Downloads** | [github.com/nvtruongops/ai-quiz-assistant/releases](https://github.com/nvtruongops/ai-quiz-assistant/releases) | Pre-built Windows binaries, portable zip packages, changelogs |
+| **Documentation & Guides** | [github.com/nvtruongops/ai-quiz-assistant#readme](https://github.com/nvtruongops/ai-quiz-assistant#readme) | Full installation, configuration, and troubleshooting documentation |
+| **Issues & Feedback** | [github.com/nvtruongops/ai-quiz-assistant/issues](https://github.com/nvtruongops/ai-quiz-assistant/issues) | Bug reports, feature suggestions, and community support |
+| **Google AI Studio API Key** | [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) | Official portal to generate free Gemini multimodal API keys |
+| **Default Local Vision Endpoint** | `http://localhost:11434/v1` | Standard OpenAI-compatible endpoint for Ollama / vLLM / LM Studio |
+| **Default Local Vision Model** | `llama3.2-vision` | Lightweight, high-accuracy multimodal model for 100% offline quiz solving |
 
 ---
 

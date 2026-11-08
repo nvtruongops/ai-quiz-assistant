@@ -11,7 +11,26 @@ from threading import Thread
 from typing import Optional
 
 _src_dir = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(_src_dir)
+try:
+    from path_utils import get_app_dir, get_resource_path
+    PROJECT_ROOT = get_app_dir()
+except ImportError:
+    try:
+        from src.path_utils import get_app_dir, get_resource_path
+        PROJECT_ROOT = get_app_dir()
+    except ImportError:
+        PROJECT_ROOT = os.path.dirname(_src_dir)
+        def get_resource_path(p=""): return os.path.join(PROJECT_ROOT, p)
+
+try:
+    from constants import GITHUB_REPO_URL, DOCUMENTATION_URL, GITHUB_ISSUES_URL
+except ImportError:
+    try:
+        from src.constants import GITHUB_REPO_URL, DOCUMENTATION_URL, GITHUB_ISSUES_URL
+    except ImportError:
+        GITHUB_REPO_URL = "https://github.com/nvtruongops/ai-quiz-assistant"
+        DOCUMENTATION_URL = "https://github.com/nvtruongops/ai-quiz-assistant#readme"
+        GITHUB_ISSUES_URL = "https://github.com/nvtruongops/ai-quiz-assistant/issues"
 
 
 def launch_file_explorer(path: str) -> bool:
@@ -75,7 +94,7 @@ class SystemTray:
         """
         Load assets/icon.png or icon.ico if present, otherwise generate modern PIL icon
         """
-        png_path = os.path.join(PROJECT_ROOT, "assets", "icon.png")
+        png_path = get_resource_path(os.path.join("assets", "icon.png"))
         if os.path.exists(png_path):
             try:
                 img = Image.open(png_path).convert('RGBA')
@@ -83,9 +102,9 @@ class SystemTray:
             except Exception:
                 pass
 
-        ico_path = os.path.join(PROJECT_ROOT, "assets", "icon.ico")
+        ico_path = get_resource_path(os.path.join("assets", "icon.ico"))
         if not os.path.exists(ico_path):
-            ico_path = os.path.join(PROJECT_ROOT, "icon.ico")
+            ico_path = get_resource_path("icon.ico")
         if os.path.exists(ico_path):
             try:
                 img = Image.open(ico_path)
@@ -165,6 +184,16 @@ class SystemTray:
                 launch_file_explorer(path)
             return wrapper
 
+        def open_link(url):
+            def wrapper(icon=None, item=None):
+                try:
+                    import webbrowser
+                    webbrowser.open_new_tab(url)
+                except Exception as e:
+                    if hasattr(self.app, 'logger'):
+                        self.app.logger.error(f"Failed to open url {url}: {e}")
+            return wrapper
+
         def toggle_provider(icon=None, item=None):
             if not hasattr(self.app, 'settings_manager') or not hasattr(self.app, 'config_manager'):
                 return
@@ -192,6 +221,10 @@ class SystemTray:
             pystray.MenuItem(f"⚙️ Settings (Alt+{hk_s})", trigger(self.app.on_setup_hotkey)),
             pystray.MenuItem("📁 Open Logs Folder", open_folder("logs")),
             pystray.MenuItem("📸 Open Screenshots Folder", open_folder("logs/screenshots")),
+            pystray.Menu.SEPARATOR,
+            pystray.MenuItem("🌐 GitHub Repository", open_link(GITHUB_REPO_URL)),
+            pystray.MenuItem("📖 Documentation", open_link(DOCUMENTATION_URL)),
+            pystray.MenuItem("💬 Report Issue", open_link(GITHUB_ISSUES_URL)),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("❌ Exit Application", self.on_quit)
         ]

@@ -60,8 +60,9 @@ def ensure_dependencies():
                 sys.exit(1)
 
 
-# Check dependencies before hiding console
-ensure_dependencies()
+# Check dependencies before hiding console (only when running from Python source)
+if not getattr(sys, 'frozen', False):
+    ensure_dependencies()
 
 # Configure Windows process properties: hide console & set Per-Monitor DPI awareness
 if sys.platform == 'win32':

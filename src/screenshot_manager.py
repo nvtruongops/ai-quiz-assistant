@@ -11,8 +11,16 @@ from typing import Optional, Tuple
 from PIL import Image, ImageGrab
 import screeninfo
 
-_src_dir = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(_src_dir)
+try:
+    from path_utils import get_app_dir
+    PROJECT_ROOT = get_app_dir()
+except ImportError:
+    try:
+        from src.path_utils import get_app_dir
+        PROJECT_ROOT = get_app_dir()
+    except ImportError:
+        _src_dir = os.path.dirname(os.path.abspath(__file__))
+        PROJECT_ROOT = os.path.dirname(_src_dir)
 
 
 class ScreenshotManager:

@@ -1,10 +1,17 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+import sys
+
+project_root = os.path.abspath(SPECPATH) if 'SPECPATH' in locals() else os.path.abspath(os.getcwd())
 
 a = Analysis(
     ['run.pyw'],
     pathex=['src', '.'],
     binaries=[],
-    datas=[('assets', 'assets')],
+    datas=[
+        ('assets', 'assets'),
+        ('.env.example', '.'),
+    ],
     hiddenimports=[
         'main',
         'config_manager',
@@ -20,6 +27,8 @@ a = Analysis(
         'system_tray',
         'models',
         'settings_manager',
+        'constants',
+        'path_utils',
         'src.main',
         'src.config_manager',
         'src.logger',
@@ -34,6 +43,8 @@ a = Analysis(
         'src.system_tray',
         'src.models',
         'src.settings_manager',
+        'src.constants',
+        'src.path_utils',
         'pynput.keyboard._win32',
         'pynput.mouse._win32',
         'google.genai',
@@ -41,13 +52,15 @@ a = Analysis(
         'PIL',
         'dotenv',
         'screeninfo',
+        'pystray',
+        'webbrowser',
     ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
     noarchive=False,
-    optimize=0,
+    optimize=1,
 )
 
 pyz = PYZ(a.pure)
@@ -71,6 +84,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=os.path.join('assets', 'icon.ico'),
-    version=os.path.join('packaging', 'version_info.txt'),
+    icon=os.path.join(project_root, 'assets', 'icon.ico'),
+    version=os.path.join(project_root, 'packaging', 'version_info.txt'),
 )
