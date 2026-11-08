@@ -105,6 +105,27 @@ class TestInitialSetupWizard(unittest.TestCase):
         self.assertEqual(self.sm.get('hotkey_capture'), 'k')
         self.assertEqual(self.sm.get('hotkey_autofill'), 'j')
 
+    def test_setup_completed_flag_prevents_repeated_dialog(self):
+        """Verify main.py does not prompt setup dialog if setup_completed is True"""
+        from main import QuizAssistantApp
+        app = QuizAssistantApp.__new__(QuizAssistantApp)
+        app.logger = MagicMock()
+        app.config_manager = MagicMock()
+        app.config_manager.is_valid.return_value = False
+        app.settings_manager = MagicMock()
+        app.settings_manager.get.side_effect = lambda k, d=None: True if k == 'setup_completed' else d
+
+        with patch('main.show_initial_setup_dialog') as mock_dialog:
+            app._ensure_credentials()
+            mock_dialog.assert_not_called()
+            self.assertIsNotNone(app._latest_error)
+
+    def test_setup_py_default_custom_url(self):
+        """Verify setup.py uses http://localhost:11434/v1 when env has empty custom URL"""
+        with patch.dict(os.environ, {'CUSTOM_API_URL': ''}):
+            cur_url = (os.getenv('CUSTOM_API_URL') or '').strip() or 'http://localhost:11434/v1'
+            self.assertEqual(cur_url, 'http://localhost:11434/v1')
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -192,7 +192,16 @@ class QuizAssistantApp:
         self.logger.info("QuizAssistantApp initialized successfully")
 
     def _ensure_credentials(self) -> None:
-        """Verify API keys exist, prompting initial setup dialog if credentials missing"""
+        """Verify API keys exist, prompting initial setup dialog on first launch"""
+        # If setup was already completed, do not force the wizard dialog again on startup
+        if self.settings_manager.get('setup_completed', False) is True:
+            if self.config_manager.is_valid():
+                self.logger.info(f"Loaded valid credentials for provider '{self.config_manager.get('API_PROVIDER', 'gemini')}'")
+            else:
+                self.logger.info("Setup previously completed; running with unconfigured AI provider. Configure via Alt+S anytime.")
+                self._latest_error = "⚠️ AI Provider not configured. Press Alt+S to configure API Key or Endpoint."
+            return
+
         if not self.config_manager.is_valid():
             self.logger.info("API credentials not found or incomplete, prompting initial setup dialog...")
             success = show_initial_setup_dialog(
@@ -202,6 +211,8 @@ class QuizAssistantApp:
             if success:
                 self.config_manager.reload()
                 self.settings_manager.load_settings()
+                self.settings_manager.settings['setup_completed'] = True
+                self.settings_manager.save_settings()
                 if self.config_manager.is_valid():
                     self.logger.info(f"Loaded valid credentials for provider '{self.config_manager.get('API_PROVIDER', 'gemini')}'")
                 else:
@@ -211,6 +222,8 @@ class QuizAssistantApp:
                 self.logger.info("Setup cancelled by user, exiting")
                 sys.exit(0)
         else:
+            self.settings_manager.settings['setup_completed'] = True
+            self.settings_manager.save_settings()
             self.logger.info(f"Loaded valid credentials for provider '{self.config_manager.get('API_PROVIDER', 'gemini')}'")
 
     def create_ai_client_for_provider(self, provider: str) -> Optional[BaseAIClient]:

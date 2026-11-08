@@ -143,6 +143,14 @@ def setup_gemini():
     save_env('GEMINI_API_KEY', api_key)
     save_env('GEMINI_MODEL', selected_model)
 
+    try:
+        from settings_manager import SettingsManager
+    except ImportError:
+        from src.settings_manager import SettingsManager
+    sm = SettingsManager()
+    sm.settings['setup_completed'] = True
+    sm.save_settings()
+
     print("\n🎉 Google Gemini configuration saved successfully!")
     print(f"Active Provider: gemini | Model: {selected_model}")
     return True
@@ -154,7 +162,7 @@ def setup_custom():
     print("🏠 CONFIGURE CUSTOM LOCAL / OPENAI-COMPATIBLE PROVIDER")
     print("=" * 60)
 
-    cur_url = os.getenv('CUSTOM_API_URL', 'http://127.0.0.1:11434/v1')
+    cur_url = (os.getenv('CUSTOM_API_URL') or '').strip() or 'http://localhost:11434/v1'
     url = input(f"Enter API Endpoint URL [default: {cur_url}]: ").strip()
     if not url:
         url = cur_url
@@ -200,8 +208,7 @@ def setup_custom():
             selected_model = cur_model
 
     if not selected_model:
-        print("❌ Model name cannot be empty!")
-        return False
+        selected_model = "llama3.2-vision"
 
     # Test Connection
     print(f"\n⏳ Testing Custom API connection with model '{selected_model}'...")
@@ -224,6 +231,14 @@ def setup_custom():
     save_env('CUSTOM_API_KEY', key)
     save_env('CUSTOM_MODEL', selected_model)
 
+    try:
+        from settings_manager import SettingsManager
+    except ImportError:
+        from src.settings_manager import SettingsManager
+    sm = SettingsManager()
+    sm.settings['setup_completed'] = True
+    sm.save_settings()
+
     print("\n🎉 Custom Provider configuration saved successfully!")
     print(f"Active Provider: custom | Endpoint: {url} | Model: {selected_model}")
     return True
@@ -234,12 +249,17 @@ def launch_gui_setup():
     print("\n🖥️ Launching GUI Setup Wizard...")
     try:
         from settings_manager import show_initial_setup_dialog, SettingsManager
+        from config_manager import ConfigManager
     except ImportError:
         from src.settings_manager import show_initial_setup_dialog, SettingsManager
+        from src.config_manager import ConfigManager
 
+    cm = ConfigManager()
     sm = SettingsManager()
-    ok = show_initial_setup_dialog(settings_manager=sm)
+    ok = show_initial_setup_dialog(config_manager=cm, settings_manager=sm)
     if ok:
+        sm.settings['setup_completed'] = True
+        sm.save_settings()
         print("✅ GUI Setup completed successfully!")
     else:
         print("ℹ️ GUI Setup closed without changes.")

@@ -395,14 +395,13 @@ def show_initial_setup_dialog(
         cur_custom_key = config_manager.get('CUSTOM_API_KEY', cur_custom_key)
         cur_custom_model = config_manager.get('CUSTOM_MODEL', cur_custom_model)
 
-    if not cur_custom_url:
+    if not cur_custom_url or cur_custom_url == 'http://127.0.0.1:11434/v1':
         cur_custom_url = 'http://localhost:11434/v1'
+    if not cur_custom_model:
+        cur_custom_model = 'llama3.2-vision'
 
     root = tk.Tk()
     root.title("AI Quiz Assistant 2.0 - Initial Setup Wizard")
-    ww, wh = 660, 720
-    root.geometry(f"{ww}x{wh}")
-    root.minsize(620, 680)
     root.resizable(True, True)
 
     # Set modern app window icon
@@ -426,9 +425,12 @@ def show_initial_setup_dialog(
     root.update_idletasks()
     sw = root.winfo_screenwidth()
     sh = root.winfo_screenheight()
-    x = max(0, (sw - ww) // 2)
-    y = max(20, (sh - wh) // 2)
-    root.geometry(f"+{x}+{y}")
+    ww = min(660, max(560, sw - 60))
+    wh = min(660, max(500, sh - 90))
+    x = max(10, (sw - ww) // 2)
+    y = max(10, (sh - wh) // 2 - 20)
+    root.geometry(f"{ww}x{wh}+{x}+{y}")
+    root.minsize(540, 460)
 
     root.lift()
     root.attributes('-topmost', True)
@@ -438,9 +440,9 @@ def show_initial_setup_dialog(
     result = {'success': False, 'skipped_ai': False}
     current_step = [1]
 
-    # Redesigned cohesive header
-    header = tk.Frame(root, bg="#1e293b", padx=16, pady=12)
-    header.pack(fill=tk.X)
+    # Redesigned cohesive header (Fixed Top)
+    header = tk.Frame(root, bg="#1e293b", padx=16, pady=8)
+    header.pack(fill=tk.X, side=tk.TOP)
 
     title_box = tk.Frame(header, bg="#1e293b")
     title_box.pack(side=tk.LEFT, fill=tk.X, expand=True)
@@ -461,9 +463,9 @@ def show_initial_setup_dialog(
     )
     sub_title_lbl.pack(anchor=tk.W, pady=(2, 0))
 
-    # Stepper Progress Bar
-    stepper_frame = tk.Frame(root, bg="#0f172a", padx=14, pady=8)
-    stepper_frame.pack(fill=tk.X)
+    # Stepper Progress Bar (Fixed Top)
+    stepper_frame = tk.Frame(root, bg="#0f172a", padx=14, pady=6)
+    stepper_frame.pack(fill=tk.X, side=tk.TOP)
 
     step_pills = []
     step_labels = [
@@ -479,14 +481,51 @@ def show_initial_setup_dialog(
             bg="#0284c7" if idx == 0 else "#1e293b",
             fg="#ffffff" if idx == 0 else "#94a3b8",
             padx=10,
-            pady=4,
+            pady=3,
             relief=tk.FLAT
         )
         pill.pack(side=tk.LEFT, padx=(0, 8))
         step_pills.append(pill)
 
-    content_container = tk.Frame(root, padx=16, pady=10)
-    content_container.pack(fill=tk.BOTH, expand=True)
+    # Action Buttons Bar (FIXED AT BOTTOM FIRST: always visible, never pushed off!)
+    btn_box = tk.Frame(root, bg="#f8fafc", padx=16, pady=8, bd=1, relief=tk.RAISED)
+    btn_box.pack(side=tk.BOTTOM, fill=tk.X)
+
+    # Scrollable middle area for Step content
+    canvas_container = tk.Frame(root)
+    canvas_container.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+    canvas = tk.Canvas(canvas_container, highlightthickness=0, bd=0)
+    v_scroll = ttk.Scrollbar(canvas_container, orient=tk.VERTICAL, command=canvas.yview)
+    canvas.configure(yscrollcommand=v_scroll.set)
+
+    content_container = tk.Frame(canvas, padx=14, pady=6)
+    content_win = canvas.create_window((0, 0), window=content_container, anchor="nw")
+
+    def _on_content_resized(event=None):
+        canvas.configure(scrollregion=canvas.bbox("all"))
+        if content_container.winfo_reqheight() > canvas.winfo_height() + 5:
+            v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        else:
+            v_scroll.pack_forget()
+
+    def _on_canvas_resized(event):
+        canvas.itemconfig(content_win, width=event.width)
+        canvas.configure(scrollregion=canvas.bbox("all"))
+        if content_container.winfo_reqheight() > event.height + 5:
+            v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        else:
+            v_scroll.pack_forget()
+
+    content_container.bind("<Configure>", _on_content_resized)
+    canvas.bind("<Configure>", _on_canvas_resized)
+
+    def _on_mousewheel(event):
+        if content_container.winfo_reqheight() > canvas.winfo_height():
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+    canvas.bind_all("<MouseWheel>", _on_mousewheel)
+    canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
     # 3 Frames for the 3 steps
     step1_frame = tk.Frame(content_container)
@@ -659,19 +698,20 @@ def show_initial_setup_dialog(
     if cur_custom_key:
         custom_key_entry.insert(0, cur_custom_key)
 
-    tk.Label(custom_frame, text="Model Name (Vision-capable):", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
+    tk.Label(custom_frame, text="Model Name:", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
     c_model_box = tk.Frame(custom_frame)
     c_model_box.pack(fill=tk.X, pady=(2, 6))
 
+    default_models = ["llama3.2-vision", "qwen2.5-vl:latest", "llama3.2-vision:11b"]
+    init_models = [cur_custom_model] + [m for m in default_models if m != cur_custom_model] if cur_custom_model else default_models
     custom_model_combo = ttk.Combobox(
         c_model_box,
-        values=[cur_custom_model] if cur_custom_model else [],
+        values=init_models,
         state="normal",
         font=("Segoe UI", 9)
     )
     custom_model_combo.pack(side=tk.LEFT, fill=tk.X, expand=True)
-    if cur_custom_model:
-        custom_model_combo.set(cur_custom_model)
+    custom_model_combo.set(cur_custom_model or "llama3.2-vision")
 
     def fetch_custom_models():
         url = custom_url_entry.get().strip()
@@ -754,6 +794,9 @@ def show_initial_setup_dialog(
             if not custom_url_entry.get().strip():
                 custom_url_entry.delete(0, tk.END)
                 custom_url_entry.insert(0, "http://localhost:11434/v1")
+            if not custom_model_combo.get().strip():
+                custom_model_combo.set(cur_custom_model or "llama3.2-vision")
+        _on_content_resized()
 
     provider_var.trace_add("write", on_provider_toggle)
     on_provider_toggle()
@@ -1221,10 +1264,11 @@ def show_initial_setup_dialog(
     # ========================================================
     # STEPPER NAVIGATION LOGIC
     # ========================================================
-    btn_box = tk.Frame(root, padx=16, pady=10)
-    btn_box.pack(fill=tk.X, side=tk.BOTTOM)
-
     def on_exit():
+        try:
+            canvas.unbind_all("<MouseWheel>")
+        except Exception:
+            pass
         close_real_hud()
         root.destroy()
 
@@ -1365,6 +1409,8 @@ def show_initial_setup_dialog(
         # 3. Save Quiz Mode (Step 3)
         settings_manager.settings['question_mode'] = mode_var.get()
 
+        # Mark setup as completed so future runs start smoothly
+        settings_manager.settings['setup_completed'] = True
         settings_manager.save_settings()
 
         if config_manager:
@@ -1372,6 +1418,10 @@ def show_initial_setup_dialog(
 
         close_real_hud()
         result['success'] = True
+        try:
+            canvas.unbind_all("<MouseWheel>")
+        except Exception:
+            pass
         root.destroy()
 
     def show_step(step_num):
@@ -1389,6 +1439,11 @@ def show_initial_setup_dialog(
             step2_frame.pack(fill=tk.BOTH, expand=True)
         elif step_num == 3:
             step3_frame.pack(fill=tk.BOTH, expand=True)
+
+        content_container.update_idletasks()
+        canvas.configure(scrollregion=canvas.bbox("all"))
+        canvas.yview_moveto(0)
+        _on_content_resized()
 
         for w in btn_box.winfo_children():
             w.destroy()
