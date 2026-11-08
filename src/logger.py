@@ -48,8 +48,13 @@ class Logger:
         self.logger = logging.getLogger("QuizAssistant")
         self.logger.setLevel(logging.INFO)
         
-        # Remove existing handlers to avoid duplicates
+        # Remove existing handlers to avoid duplicates and ensure file streams are closed
         if self.logger.handlers:
+            for h in list(self.logger.handlers):
+                try:
+                    h.close()
+                except Exception:
+                    pass
             self.logger.handlers.clear()
         
         # Create rotating file handler (max 10MB, keep 3 backup files)
@@ -97,3 +102,23 @@ class Logger:
         """
         if self.logger:
             self.logger.error(message, exc_info=exc_info)
+
+    def warning(self, message: str):
+        """Log warning level message"""
+        if self.logger:
+            self.logger.warning(message)
+
+    def debug(self, message: str):
+        """Log debug level message"""
+        if self.logger:
+            self.logger.debug(message)
+
+    def close(self):
+        """Close and flush all logging handlers"""
+        if self.logger and self.logger.handlers:
+            for h in list(self.logger.handlers):
+                try:
+                    h.close()
+                except Exception:
+                    pass
+            self.logger.handlers.clear()

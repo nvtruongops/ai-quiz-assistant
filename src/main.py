@@ -1154,6 +1154,10 @@ class QuizAssistantApp:
             self.logger.error(f"Error during shutdown: {e}")
         finally:
             self.logger.info("AI Quiz Assistant shutdown complete")
+            try:
+                self.logger.close()
+            except Exception:
+                pass
             sys.exit(0)
 
 
