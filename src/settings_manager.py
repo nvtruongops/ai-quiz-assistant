@@ -354,9 +354,10 @@ def show_initial_setup_dialog(
     parent: Optional[tk.Tk] = None
 ) -> bool:
     """
-    Initial Setup Wizard allowing user to configure either:
-    1. Google Gemini (AI Studio)
-    2. Custom Local / Proxy (OpenAI format, Ollama, LM Studio, Claude Proxy)
+    Initial Setup Wizard (3-Step Stepper):
+    - Step 1: 🤖 AI Provider (Google Gemini / Custom Local / Skip AI)
+    - Step 2: 🎨 UI Theme for Popup HUD (Stealth, White, Dark, Cream, Blue, Gray) + Live Preview Card + Opacity
+    - Step 3: 🎯 Quiz Mode & Hotkeys Cheatsheet Reference (Finish & Start)
     """
     if settings_manager is None:
         settings_manager = SettingsManager()
@@ -380,9 +381,10 @@ def show_initial_setup_dialog(
         cur_custom_model = config_manager.get('CUSTOM_MODEL', cur_custom_model)
 
     root = tk.Tk()
-    root.title("AI Quiz Assistant 2.0 - Initial Setup Wizard")
-    root.geometry("600x640")
-    root.resizable(False, False)
+    root.title("AI Quiz Assistant 2.0 - Khởi chạy & Thiết lập lần đầu")
+    root.geometry("640x680")
+    root.minsize(600, 640)
+    root.resizable(True, True)
 
     # Set modern app window icon
     ico_path = os.path.join(PROJECT_ROOT, "assets", "icon.ico")
@@ -403,8 +405,8 @@ def show_initial_setup_dialog(
             pass
 
     root.update_idletasks()
-    x = (root.winfo_screenwidth() - 600) // 2
-    y = (root.winfo_screenheight() - 640) // 2
+    x = max(0, (root.winfo_screenwidth() - 640) // 2)
+    y = max(20, (root.winfo_screenheight() - 680) // 2)
     root.geometry(f"+{x}+{y}")
 
     root.lift()
@@ -412,33 +414,81 @@ def show_initial_setup_dialog(
     root.after(150, lambda: root.attributes('-topmost', False))
     root.focus_force()
 
-    result = {'success': False}
+    result = {'success': False, 'skipped_ai': False}
+    current_step = [1]
 
     # Redesigned cohesive header
     header = tk.Frame(root, bg="#1e293b", padx=16, pady=12)
     header.pack(fill=tk.X)
 
     title_box = tk.Frame(header, bg="#1e293b")
-    title_box.pack(side=tk.LEFT)
-    tk.Label(title_box, text="⚙️ AI Quiz Assistant 2.0 - Initial Setup", font=("Segoe UI", 12, "bold"), fg="#89b4fa", bg="#1e293b").pack(anchor=tk.W)
-    tk.Label(title_box, text="Select AI Provider and Quiz Mode to get started", font=("Segoe UI", 9), fg="#94a3b8", bg="#1e293b").pack(anchor=tk.W, pady=(2, 0))
+    title_box.pack(side=tk.LEFT, fill=tk.X, expand=True)
+    tk.Label(
+        title_box,
+        text="⚙️ AI Quiz Assistant 2.0 — Cấu hình khởi chạy",
+        font=("Segoe UI", 12, "bold"),
+        fg="#89b4fa",
+        bg="#1e293b"
+    ).pack(anchor=tk.W)
 
-    content = tk.Frame(root, padx=18, pady=10)
-    content.pack(fill=tk.BOTH, expand=True)
+    sub_title_lbl = tk.Label(
+        title_box,
+        text="Bước 1/3: 🤖 Chọn & Cấu hình AI Provider (hoặc Bỏ qua để thử trước)",
+        font=("Segoe UI", 9),
+        fg="#94a3b8",
+        bg="#1e293b"
+    )
+    sub_title_lbl.pack(anchor=tk.W, pady=(2, 0))
 
-    # 1. Provider Selection
-    provider_lf = tk.LabelFrame(content, text=" 1. Select AI Provider ", font=("Segoe UI", 9, "bold"), padx=12, pady=6)
-    provider_lf.pack(fill=tk.X, pady=(0, 8))
+    # Stepper Progress Bar
+    stepper_frame = tk.Frame(root, bg="#0f172a", padx=14, pady=8)
+    stepper_frame.pack(fill=tk.X)
+
+    step_pills = []
+    step_labels = [
+        "1. 🤖 AI Provider",
+        "2. 🎨 UI Theme HUD",
+        "3. 🎯 Chế độ & Phím tắt"
+    ]
+    for idx, s_text in enumerate(step_labels):
+        pill = tk.Label(
+            stepper_frame,
+            text=s_text,
+            font=("Segoe UI", 8, "bold" if idx == 0 else "normal"),
+            bg="#0284c7" if idx == 0 else "#1e293b",
+            fg="#ffffff" if idx == 0 else "#94a3b8",
+            padx=10,
+            pady=4,
+            relief=tk.FLAT
+        )
+        pill.pack(side=tk.LEFT, padx=(0, 8))
+        step_pills.append(pill)
+
+    content_container = tk.Frame(root, padx=16, pady=10)
+    content_container.pack(fill=tk.BOTH, expand=True)
+
+    # 3 Frames for the 3 steps
+    step1_frame = tk.Frame(content_container)
+    step2_frame = tk.Frame(content_container)
+    step3_frame = tk.Frame(content_container)
+
+    # ========================================================
+    # STEP 1: AI Provider (Gemini / Custom / Skip)
+    # ========================================================
+    tk.Label(
+        step1_frame,
+        text="1. Chọn nền tảng AI xử lý câu hỏi:",
+        font=("Segoe UI", 10, "bold")
+    ).pack(anchor=tk.W, pady=(0, 6))
 
     prov_options = [
-        ("gemini", "Google Gemini AI Studio (Cloud)", "Free, ultra-fast vision analysis (~1.4s), high quality from Google."),
-        ("custom", "Custom Local / Proxy (OpenAI-compatible)", "Compatible with Ollama, vLLM, LM Studio, Claude Proxy, or OpenAI API.")
+        ("gemini", "Google Gemini AI Studio (Cloud)", "Miễn phí, phân tích thị giác siêu tốc (~1.4s), chất lượng cao nhất từ Google."),
+        ("custom", "Custom Local / Proxy (OpenAI-compatible)", "Tương thích Ollama, vLLM, LM Studio, Claude Proxy hoặc OpenAI API.")
     ]
-    provider_var, _ = _create_card_selector(provider_lf, prov_options, cur_provider if cur_provider in ['gemini', 'custom'] else 'gemini')
+    provider_var, _ = _create_card_selector(step1_frame, prov_options, cur_provider if cur_provider in ['gemini', 'custom'] else 'gemini')
 
-    # Dynamic Container Frame
-    config_container = tk.LabelFrame(content, text=" 2. API Connection Details ", font=("Segoe UI", 9, "bold"), padx=12, pady=8)
-    config_container.pack(fill=tk.X, pady=(0, 8))
+    config_container = tk.LabelFrame(step1_frame, text=" 2. Thông tin kết nối & Model ", font=("Segoe UI", 9, "bold"), padx=12, pady=8)
+    config_container.pack(fill=tk.X, pady=(6, 8))
 
     # --- Gemini Frame ---
     gemini_frame = tk.Frame(config_container)
@@ -480,11 +530,11 @@ def show_initial_setup_dialog(
     def fetch_gemini_models():
         k = gemini_key_entry.get().strip()
         if not k:
-            messagebox.showwarning("Warning", "Please enter Gemini API Key first!", parent=root)
+            messagebox.showwarning("Cảnh báo", "Vui lòng nhập Gemini API Key trước!", parent=root)
             return
 
         def _worker():
-            g_status_lbl.config(text="⏳ Fetching available models...", fg="#e67e22")
+            g_status_lbl.config(text="⏳ Đang truy vấn danh sách model từ Google...", fg="#e67e22")
             try:
                 try:
                     from gemini_client import GeminiAPIClient
@@ -496,7 +546,7 @@ def show_initial_setup_dialog(
                         gemini_model_combo['values'] = models
                         if not gemini_model_combo.get() or gemini_model_combo.get() not in models:
                             gemini_model_combo.set(models[0])
-                        g_status_lbl.config(text=f"✅ {len(models)} models available", fg="#27ae60")
+                        g_status_lbl.config(text=f"✅ Tìm thấy {len(models)} models khả dụng", fg="#27ae60")
                     root.after(0, _apply)
                 else:
                     g_status_lbl.config(text=f"❌ {msg[:45]}", fg="#e74c3c")
@@ -508,32 +558,29 @@ def show_initial_setup_dialog(
     fetch_g_btn = tk.Button(g_model_box, text="🔄 Fetch Models", command=fetch_gemini_models, font=("Segoe UI", 8), padx=6)
     fetch_g_btn.pack(side=tk.LEFT, padx=(6, 0))
 
-    link_g = tk.Label(gemini_frame, text="👉 Click here to get a free API key at Google AI Studio", font=("Segoe UI", 8, "underline"), fg="#0066cc", cursor="hand2")
+    link_g = tk.Label(gemini_frame, text="👉 Nhấn vào đây để lấy API Key miễn phí tại Google AI Studio", font=("Segoe UI", 8, "underline"), fg="#0066cc", cursor="hand2")
     link_g.pack(anchor=tk.W, pady=(2, 6))
     link_g.bind("<Button-1>", lambda e: os.startfile("https://aistudio.google.com/app/apikey"))
 
     g_test_row = tk.Frame(gemini_frame)
     g_test_row.pack(fill=tk.X, pady=(2, 0))
-
-    g_status_lbl = tk.Label(g_test_row, text="Not tested", font=("Segoe UI", 8, "italic"), fg="#7f8c8d")
+    g_status_lbl = tk.Label(g_test_row, text="Chưa kiểm tra", font=("Segoe UI", 8, "italic"), fg="#7f8c8d")
 
     def test_gemini_action():
         k = gemini_key_entry.get().strip()
         m = gemini_model_combo.get().strip()
         if not k:
-            messagebox.showwarning("Warning", "Please enter Gemini API Key before testing!", parent=root)
+            messagebox.showwarning("Cảnh báo", "Vui lòng nhập Gemini API Key trước khi test!", parent=root)
             return
 
         def _worker():
-            g_status_lbl.config(text="⏳ Testing connection...", fg="#e67e22")
+            g_status_lbl.config(text="⏳ Đang kiểm tra kết nối Gemini...", fg="#e67e22")
             t0 = time.time()
             try:
                 try:
                     from gemini_client import GeminiAPIClient
                 except ImportError:
                     from src.gemini_client import GeminiAPIClient
-
-                # First fetch available models if none loaded yet
                 ok, models, _ = GeminiAPIClient.list_models(k)
                 curr_m = m
                 if ok and models:
@@ -544,26 +591,19 @@ def show_initial_setup_dialog(
                     root.after(0, _update_models)
                     if not curr_m:
                         curr_m = models[0]
-
                 if not curr_m:
                     curr_m = "gemini-2.5-flash"
-
                 from google import genai
                 client = genai.Client(api_key=k)
-                client.models.generate_content(
-                    model=curr_m,
-                    contents="ping"
-                )
+                client.models.generate_content(model=curr_m, contents="ping")
                 lat = round(time.time() - t0, 2)
-                g_status_lbl.config(text=f"✅ Connected successfully ({lat}s)!", fg="#27ae60")
+                g_status_lbl.config(text=f"✅ Kết nối thành công ({lat}s)!", fg="#27ae60")
             except Exception as e:
                 err_str = str(e)
                 if "API_KEY_INVALID" in err_str:
-                    g_status_lbl.config(text="❌ Error: Invalid API Key!", fg="#e74c3c")
-                elif "NOT_FOUND" in err_str:
-                    g_status_lbl.config(text=f"❌ Error: Model {m} not found!", fg="#e74c3c")
+                    g_status_lbl.config(text="❌ Lỗi: API Key không hợp lệ!", fg="#e74c3c")
                 else:
-                    g_status_lbl.config(text=f"❌ Error: {err_str[:40]}...", fg="#e74c3c")
+                    g_status_lbl.config(text=f"❌ Lỗi: {err_str[:40]}...", fg="#e74c3c")
 
         threading.Thread(target=_worker, daemon=True).start()
 
@@ -573,12 +613,12 @@ def show_initial_setup_dialog(
     # --- Custom Frame ---
     custom_frame = tk.Frame(config_container)
 
-    tk.Label(custom_frame, text="API Endpoint URL (Standard /v1):", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
+    tk.Label(custom_frame, text="API Endpoint URL (Chuẩn /v1):", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
     custom_url_entry = tk.Entry(custom_frame, font=("Segoe UI", 10))
     custom_url_entry.pack(fill=tk.X, pady=(2, 6))
     custom_url_entry.insert(0, cur_custom_url)
 
-    tk.Label(custom_frame, text="API Key (Optional for local / required for proxy):", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
+    tk.Label(custom_frame, text="API Key (Tùy chọn cho local / bắt buộc cho proxy):", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
     c_key_box = tk.Frame(custom_frame)
     c_key_box.pack(fill=tk.X, pady=(2, 6))
 
@@ -598,7 +638,7 @@ def show_initial_setup_dialog(
     if cur_custom_key:
         custom_key_entry.insert(0, cur_custom_key)
 
-    tk.Label(custom_frame, text="Model Name (Vision-capable):", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
+    tk.Label(custom_frame, text="Tên Model (Hỗ trợ Vision):", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
     c_model_box = tk.Frame(custom_frame)
     c_model_box.pack(fill=tk.X, pady=(2, 6))
 
@@ -616,11 +656,11 @@ def show_initial_setup_dialog(
         url = custom_url_entry.get().strip()
         k = custom_key_entry.get().strip()
         if not url:
-            messagebox.showwarning("Warning", "Please enter API URL first!", parent=root)
+            messagebox.showwarning("Cảnh báo", "Vui lòng nhập API URL trước!", parent=root)
             return
 
         def _worker():
-            c_status_lbl.config(text="⏳ Fetching endpoint models...", fg="#e67e22")
+            c_status_lbl.config(text="⏳ Đang lấy danh sách models từ server...", fg="#e67e22")
             try:
                 try:
                     from custom_client import CustomAPIClient
@@ -632,7 +672,7 @@ def show_initial_setup_dialog(
                         custom_model_combo['values'] = models
                         if not custom_model_combo.get() or custom_model_combo.get() not in models:
                             custom_model_combo.set(models[0])
-                        c_status_lbl.config(text=f"✅ {len(models)} models available", fg="#27ae60")
+                        c_status_lbl.config(text=f"✅ Tìm thấy {len(models)} models", fg="#27ae60")
                     root.after(0, _apply)
                 else:
                     c_status_lbl.config(text=f"❌ {msg[:45]}", fg="#e74c3c")
@@ -646,25 +686,23 @@ def show_initial_setup_dialog(
 
     c_test_row = tk.Frame(custom_frame)
     c_test_row.pack(fill=tk.X, pady=(2, 0))
-
-    c_status_lbl = tk.Label(c_test_row, text="Not tested", font=("Segoe UI", 8, "italic"), fg="#7f8c8d")
+    c_status_lbl = tk.Label(c_test_row, text="Chưa kiểm tra", font=("Segoe UI", 8, "italic"), fg="#7f8c8d")
 
     def test_custom_action():
         url = custom_url_entry.get().strip()
         k = custom_key_entry.get().strip()
         if not url:
-            messagebox.showwarning("Warning", "Please enter API URL!", parent=root)
+            messagebox.showwarning("Cảnh báo", "Vui lòng nhập API URL!", parent=root)
             return
 
         def _worker():
-            c_status_lbl.config(text="⏳ Testing connection...", fg="#e67e22")
+            c_status_lbl.config(text="⏳ Đang kiểm tra kết nối...", fg="#e67e22")
             t0 = time.time()
             try:
                 try:
                     from custom_client import CustomAPIClient
                 except ImportError:
                     from src.custom_client import CustomAPIClient
-
                 ok, models, _ = CustomAPIClient.list_models(url, k)
                 lat = round(time.time() - t0, 2)
                 if ok and models:
@@ -673,18 +711,17 @@ def show_initial_setup_dialog(
                         if not custom_model_combo.get() or custom_model_combo.get() not in models:
                             custom_model_combo.set(models[0])
                     root.after(0, _update_c_models)
-                    c_status_lbl.config(text=f"✅ Connected ({len(models)} models, {lat}s)!", fg="#27ae60")
+                    c_status_lbl.config(text=f"✅ Đã kết nối ({len(models)} models, {lat}s)!", fg="#27ae60")
                 else:
-                    c_status_lbl.config(text=f"⚠️ Server reached ({lat}s), but no models listed", fg="#e67e22")
+                    c_status_lbl.config(text=f"⚠️ Kết nối server được ({lat}s), chưa thấy model", fg="#e67e22")
             except Exception as e:
-                c_status_lbl.config(text=f"❌ Error: {str(e)[:40]}...", fg="#e74c3c")
+                c_status_lbl.config(text=f"❌ Lỗi: {str(e)[:40]}...", fg="#e74c3c")
 
         threading.Thread(target=_worker, daemon=True).start()
 
     tk.Button(c_test_row, text="⚡ Test Connection", command=test_custom_action, font=("Segoe UI", 8), bg="#8e44ad", fg="white", padx=8).pack(side=tk.LEFT)
     c_status_lbl.pack(side=tk.LEFT, padx=10)
 
-    # Dynamic switcher function
     def on_provider_toggle(*args):
         p = provider_var.get()
         if p == 'gemini':
@@ -697,98 +734,333 @@ def show_initial_setup_dialog(
     provider_var.trace_add("write", on_provider_toggle)
     on_provider_toggle()
 
-    # 3. Preferences Frame with Card Selector
-    pref_lf = tk.LabelFrame(content, text=" 3. Quiz Mode & Answer Formatting ", font=("Segoe UI", 9, "bold"), padx=12, pady=6)
-    pref_lf.pack(fill=tk.X, pady=(0, 6))
+    tip1_card = tk.Frame(step1_frame, bg="#f1f5f9", padx=10, pady=8, bd=1, relief=tk.SOLID)
+    tip1_card.pack(fill=tk.X, pady=(6, 0))
+    tk.Label(
+        tip1_card,
+        text="💡 Mẹo: Bạn có thể bấm '⏭️ Bỏ qua AI (Skip)' bên dưới nếu chưa muốn cấu hình bây giờ.\n"
+             "Ứng dụng vẫn sẽ khởi chạy bình thường, và bạn có thể nhập API Key bất cứ lúc nào bằng phím tắt Alt+S.",
+        font=("Segoe UI", 8),
+        fg="#475569",
+        bg="#f1f5f9",
+        justify=tk.LEFT
+    ).pack(anchor=tk.W)
+
+    # ========================================================
+    # STEP 2: UI Theme for Popup HUD
+    # ========================================================
+    tk.Label(
+        step2_frame,
+        text="Chọn phong cách giao diện HUD (Thẻ kết quả nổi khi thi):",
+        font=("Segoe UI", 10, "bold")
+    ).pack(anchor=tk.W, pady=(0, 2))
+    tk.Label(
+        step2_frame,
+        text="Nhấn vào theme để xem trước màu nền và độ tương phản chữ trên thẻ mẫu:",
+        font=("Segoe UI", 8),
+        fg="#64748b"
+    ).pack(anchor=tk.W, pady=(0, 6))
+
+    cur_theme = settings_manager.get('popup_bg_color', '#ffffff')
+    if str(cur_theme).startswith('stealth'):
+        cur_theme_init = 'stealth'
+    elif str(cur_theme).lower() in ['#ffffff', '#1e1e2e', '#fef9c3', '#e0f2fe', '#f8fafc']:
+        cur_theme_init = str(cur_theme).lower()
+    else:
+        cur_theme_init = '#ffffff'
+
+    theme_options = [
+        ("stealth", "👻 Stealth (Tàng hình)", "Nền tệp màu màn hình, không viền, chữ xám slate dịu, chữ thường. Ẩn mình tuyệt đối."),
+        ("#ffffff", "⚪ Pure White (Trắng sáng)", "Trắng tinh sạch sẽ, viền mảnh, chữ đen tương phản cao chuẩn tài liệu."),
+        ("#1e1e2e", "🌙 Dark Mode (Tối dịu mắt)", "Nền đen xám Catppuccin Mocha, chữ trắng sáng, dịu mắt ban đêm."),
+        ("#fef9c3", "🍦 Warm Cream (Vàng kem)", "Nền kem ấm, dịu mắt, giảm căng thẳng thị giác khi nhìn màn hình lâu."),
+        ("#e0f2fe", "🔵 Soft Blue (Xanh dịu)", "Nền lam pastel nhẹ nhàng, hiện đại và thanh lịch."),
+        ("#f8fafc", "🌫️ Modern Gray (Xám nhạt)", "Nền xám nhạt trung tính, tối giản phong cách chuyên nghiệp.")
+    ]
+
+    selected_theme_var = tk.StringVar(value=cur_theme_init)
+
+    themes_wrapper = tk.Frame(step2_frame)
+    themes_wrapper.pack(fill=tk.X, pady=(0, 4))
+
+    preview_box = tk.LabelFrame(step2_frame, text=" 👁️ Xem trước thẻ HUD trên màn hình (Live Preview) ", font=("Segoe UI", 9, "bold"), padx=10, pady=6)
+    preview_box.pack(fill=tk.X, pady=(4, 6))
+
+    preview_outer = tk.Frame(preview_box, bd=1, relief=tk.SOLID)
+    preview_outer.pack(fill=tk.X, padx=4, pady=4)
+
+    preview_header = tk.Frame(preview_outer, padx=8, pady=3)
+    preview_header.pack(fill=tk.X)
+
+    preview_title = tk.Label(preview_header, text="Question 1/1", font=("Segoe UI", 8, "bold"))
+    preview_title.pack(side=tk.LEFT)
+
+    preview_badge = tk.Label(preview_header, text="Gemini", font=("Segoe UI", 7), padx=4, pady=1)
+    preview_badge.pack(side=tk.LEFT, padx=(6, 0))
+
+    preview_close = tk.Label(preview_header, text="✕", font=("Segoe UI", 8, "bold"))
+    preview_close.pack(side=tk.RIGHT)
+
+    preview_body = tk.Frame(preview_outer, padx=10, pady=6)
+    preview_body.pack(fill=tk.X)
+
+    preview_q = tk.Label(preview_body, text="Câu 1: Đâu là thủ đô của nước Pháp?", font=("Segoe UI", 9, "bold"), anchor=tk.W)
+    preview_q.pack(anchor=tk.W)
+
+    preview_a = tk.Label(preview_body, text="✓ Đáp án: A. Paris", font=("Segoe UI", 9, "bold"), anchor=tk.W)
+    preview_a.pack(anchor=tk.W, pady=(2, 3))
+
+    preview_exp_btn = tk.Label(preview_body, text="💡 Giải thích: Paris là thủ đô và trung tâm kinh tế của Pháp...", font=("Segoe UI", 7), padx=6, pady=2)
+    preview_exp_btn.pack(anchor=tk.W)
+
+    def apply_theme_preview(theme_code):
+        try:
+            try:
+                from popup_manager import get_popup_theme
+            except ImportError:
+                from src.popup_manager import get_popup_theme
+            th = get_popup_theme(theme_code)
+            is_st = th.get('is_stealth', False)
+
+            preview_outer.config(
+                bg=th.get('border', '#cbd5e1'),
+                bd=0 if is_st else 1,
+                relief=tk.FLAT if is_st else tk.SOLID
+            )
+            preview_header.config(bg=th.get('header_bg', '#f1f5f9'))
+            preview_title.config(
+                bg=th.get('header_bg', '#f1f5f9'),
+                fg=th.get('accent', '#0284c7'),
+                font=("Segoe UI", 8, "normal" if is_st else "bold")
+            )
+            preview_badge.config(
+                bg=th.get('badge_bg', '#e2e8f0'),
+                fg=th.get('badge_fg', '#334155'),
+                bd=0 if is_st else 1,
+                relief=tk.FLAT if is_st else tk.SOLID
+            )
+            preview_close.config(
+                bg=th.get('header_bg', '#f1f5f9'),
+                fg=th.get('close_fg', '#dc2626'),
+                font=("Segoe UI", 8 if is_st else 9, "normal" if is_st else "bold")
+            )
+            preview_body.config(bg=th.get('bg', '#ffffff'))
+            preview_q.config(
+                bg=th.get('bg', '#ffffff'),
+                fg=th.get('question', '#0369a1'),
+                font=("Segoe UI", 8, "normal" if is_st else "bold")
+            )
+            preview_a.config(
+                bg=th.get('bg', '#ffffff'),
+                fg=th.get('answer', '#15803d'),
+                font=("Segoe UI", 8, "normal" if is_st else "bold")
+            )
+            preview_exp_btn.config(
+                bg=th.get('exp_btn_bg', '#e2e8f0'),
+                fg=th.get('exp_btn_fg', '#0284c7'),
+                bd=0 if is_st else 1,
+                relief=tk.FLAT if is_st else tk.SOLID
+            )
+        except Exception:
+            pass
+
+    def on_theme_change(new_th):
+        selected_theme_var.set(new_th)
+        apply_theme_preview(new_th)
+
+    _, _ = _create_card_selector(themes_wrapper, theme_options, cur_theme_init, on_change=on_theme_change)
+    apply_theme_preview(cur_theme_init)
+
+    # Opacity row
+    op_box = tk.Frame(step2_frame)
+    op_box.pack(fill=tk.X, pady=(4, 0))
+
+    cur_opacity_pct = int(round(float(settings_manager.get('popup_opacity', 0.96)) * 100))
+    opacity_var = tk.IntVar(value=cur_opacity_pct)
+
+    tk.Label(op_box, text="Độ mờ thẻ HUD (Opacity):", font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT)
+    op_val_lbl = tk.Label(op_box, text=f"{cur_opacity_pct}%", font=("Segoe UI", 9, "bold"), fg="#0284c7", width=5)
+    op_val_lbl.pack(side=tk.RIGHT)
+
+    def on_op_slide(val):
+        op_val_lbl.config(text=f"{int(float(val))}%")
+
+    op_scale = ttk.Scale(op_box, from_=60, to=100, variable=opacity_var, command=on_op_slide)
+    op_scale.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=10)
+
+    # ========================================================
+    # STEP 3: Quiz Mode & Hotkeys Cheatsheet
+    # ========================================================
+    tk.Label(
+        step3_frame,
+        text="1. Chọn Chế độ giải câu hỏi mặc định:",
+        font=("Segoe UI", 10, "bold")
+    ).pack(anchor=tk.W, pady=(0, 4))
 
     mode_options = [
-        ("multiple_choice", "Multiple Choice (Answers Only)", "Extracts question and answer letter/text, without displaying explanations."),
-        ("multiple_choice_explanation", "Multiple Choice + Explanation", "Extracts question, answer, and explanation (collapsible on demand)."),
-        ("essay", "Essay / Detailed Solutions", "Extracts essay questions and step-by-step detailed solutions.")
+        ("multiple_choice", "⚡ Trắc nghiệm nhanh (Answers Only) - Khuyên dùng", "Trích xuất câu hỏi và đáp án đúng (A, B, C, D...), không hiển thị giải thích dài dòng."),
+        ("multiple_choice_explanation", "📝 Trắc nghiệm + Giải thích (MC + Explanation)", "Trích xuất câu hỏi, đáp án và giải thích chi tiết (có nút bấm mở rộng/thu gọn)."),
+        ("essay", "✍️ Tự luận / Lời giải chi tiết (Essay)", "Dành cho câu hỏi mở, toán học, giải chi tiết từng bước.")
     ]
     cur_mode = settings_manager.get('question_mode', 'multiple_choice')
-    mode_var, _ = _create_card_selector(pref_lf, mode_options, cur_mode)
+    mode_var, _ = _create_card_selector(step3_frame, mode_options, cur_mode)
 
-    # Bottom Actions
+    hk_box = tk.LabelFrame(step3_frame, text=" 2. Bảng Phím tắt cốt lõi khi làm bài ", font=("Segoe UI", 9, "bold"), padx=12, pady=6)
+    hk_box.pack(fill=tk.X, pady=(6, 4))
+
+    hotkeys_info = [
+        ("Alt + Z", "📸 Chụp & giải đề ngầm", "Chạy hoàn toàn im lặng ở nền, không tự động bật popup khi thi"),
+        ("Alt + X", "⚡ Tự động click đáp án", "Nhận diện tọa độ và tự động click chuột chọn đáp án đúng"),
+        ("Alt + C", "👁️ Xem thẻ kết quả", "Bật/Tắt thẻ kết quả câu hỏi mới nhất vừa chụp"),
+        ("Alt + H", "📜 Xem toàn bộ lịch sử", "Xem lại danh sách tất cả các câu hỏi đã làm"),
+        ("Alt + S", "⚙️ Mở bảng Cài đặt", "Đổi phím tắt, đổi màu sắc, đổi API và tùy biến nâng cao")
+    ]
+
+    for hk, label, desc in hotkeys_info:
+        row = tk.Frame(hk_box)
+        row.pack(fill=tk.X, pady=2)
+        badge = tk.Label(row, text=hk, font=("Segoe UI", 8, "bold"), bg="#1e293b", fg="#ffffff", padx=6, pady=1)
+        badge.pack(side=tk.LEFT)
+        tk.Label(row, text=f" {label}:", font=("Segoe UI", 8, "bold"), fg="#1e40af").pack(side=tk.LEFT)
+        tk.Label(row, text=f" {desc}", font=("Segoe UI", 8), fg="#475569").pack(side=tk.LEFT)
+
+    note3 = tk.Label(
+        step3_frame,
+        text="💡 Sau khi bấm Hoàn tất, ứng dụng sẽ thu nhỏ chạy ngầm ở Khay hệ thống (góc phải Taskbar).\n"
+             "Bạn có thể mở lại Cài đặt bất cứ lúc nào bằng phím tắt Alt+S hoặc chuột phải vào icon khay.",
+        font=("Segoe UI", 8, "italic"),
+        fg="#64748b",
+        justify=tk.LEFT
+    )
+    note3.pack(anchor=tk.W, pady=(4, 0))
+
+    # ========================================================
+    # STEPPER NAVIGATION LOGIC
+    # ========================================================
     btn_box = tk.Frame(root, padx=16, pady=10)
     btn_box.pack(fill=tk.X, side=tk.BOTTOM)
 
-    def on_save_start():
+    def on_exit():
+        root.destroy()
+
+    def update_stepper_ui(step_num):
+        subtitles = {
+            1: "Bước 1/3: 🤖 Chọn & Cấu hình AI Provider (hoặc Bỏ qua để thử trước)",
+            2: "Bước 2/3: 🎨 Chọn Giao diện HUD Popup (UI Theme & Độ mờ)",
+            3: "Bước 3/3: 🎯 Chọn Chế độ thi & Bảng phím tắt cốt lõi"
+        }
+        sub_title_lbl.config(text=subtitles.get(step_num, ""))
+
+        for i, pill in enumerate(step_pills):
+            s_idx = i + 1
+            if s_idx == step_num:
+                pill.config(bg="#0284c7", fg="#ffffff", font=("Segoe UI", 8, "bold"), text=step_labels[i])
+            elif s_idx < step_num:
+                pill.config(bg="#16a34a", fg="#ffffff", font=("Segoe UI", 8), text=f"✓ {step_labels[i]}")
+            else:
+                pill.config(bg="#1e293b", fg="#94a3b8", font=("Segoe UI", 8), text=step_labels[i])
+
+    def skip_step1():
+        result['skipped_ai'] = True
+        show_step(2)
+
+    def submit_step1():
         sel_p = provider_var.get()
         if sel_p == 'gemini':
             g_key = gemini_key_entry.get().strip()
             g_model = gemini_model_combo.get().strip()
             if not g_key:
-                messagebox.showerror("Error", "Please enter Gemini API Key!", parent=root)
+                ans = messagebox.askyesno(
+                    "Chưa nhập Gemini API Key",
+                    "Bạn chưa nhập Gemini API Key.\n\n"
+                    "Bạn có muốn bỏ qua cấu hình AI để vào giao diện trước (có thể cài đặt sau bằng Alt+S) không?",
+                    parent=root
+                )
+                if ans:
+                    skip_step1()
                 return
             if len(g_key) < 15:
-                messagebox.showerror("Error", "Gemini API Key is too short!", parent=root)
+                messagebox.showerror("Lỗi", "Gemini API Key quá ngắn! Vui lòng kiểm tra lại.", parent=root)
                 return
             if not g_model:
-                messagebox.showerror("Error", "Please select or enter a Gemini model name!", parent=root)
-                return
+                gemini_model_combo.set("gemini-2.5-flash")
+            result['skipped_ai'] = False
+            show_step(2)
         else:
             c_url = custom_url_entry.get().strip()
-            c_key = custom_key_entry.get().strip()
             c_model = custom_model_combo.get().strip()
-            if not c_url:
-                messagebox.showerror("Error", "Please enter Custom API URL!", parent=root)
+            if not c_url or not c_model:
+                ans = messagebox.askyesno(
+                    "Chưa hoàn tất cấu hình Custom",
+                    "Bạn chưa nhập đủ URL hoặc Model Name.\n\n"
+                    "Bạn có muốn bỏ qua bước này để vào app trước không?",
+                    parent=root
+                )
+                if ans:
+                    skip_step1()
                 return
-            if not c_model:
-                messagebox.showerror("Error", "Please select or enter a Model Name!", parent=root)
-                return
+            result['skipped_ai'] = False
+            show_step(2)
 
-        # Save to .env
-        env_lines = []
-        if os.path.exists(env_path):
+    def on_save_finish():
+        # 1. Save AI Credentials if not skipped
+        if not result['skipped_ai']:
+            sel_p = provider_var.get()
+            env_lines = []
+            if os.path.exists(env_path):
+                try:
+                    with open(env_path, 'r', encoding='utf-8') as f:
+                        env_lines = f.readlines()
+                except Exception:
+                    env_lines = []
+
+            def set_line(lines, k, v):
+                found = False
+                for i, line in enumerate(lines):
+                    if line.strip().startswith(f"{k}="):
+                        lines[i] = f"{k}={v}\n"
+                        found = True
+                        break
+                if not found:
+                    lines.append(f"{k}={v}\n")
+                return lines
+
+            env_lines = set_line(env_lines, 'API_PROVIDER', sel_p)
+            if sel_p == 'gemini':
+                env_lines = set_line(env_lines, 'GEMINI_API_KEY', gemini_key_entry.get().strip())
+                env_lines = set_line(env_lines, 'GEMINI_MODEL', gemini_model_combo.get().strip())
+            else:
+                env_lines = set_line(env_lines, 'CUSTOM_API_URL', custom_url_entry.get().strip())
+                env_lines = set_line(env_lines, 'CUSTOM_API_KEY', custom_key_entry.get().strip())
+                env_lines = set_line(env_lines, 'CUSTOM_MODEL', custom_model_combo.get().strip())
+
             try:
-                with open(env_path, 'r', encoding='utf-8') as f:
-                    env_lines = f.readlines()
-            except Exception:
-                env_lines = []
+                with open(env_path, 'w', encoding='utf-8') as f:
+                    f.writelines(env_lines)
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to write .env: {e}", parent=root)
+                return
 
-        def set_line(lines, k, v):
-            found = False
-            for i, line in enumerate(lines):
-                if line.strip().startswith(f"{k}="):
-                    lines[i] = f"{k}={v}\n"
-                    found = True
-                    break
-            if not found:
-                lines.append(f"{k}={v}\n")
-            return lines
+            os.environ['API_PROVIDER'] = sel_p
+            if sel_p == 'gemini':
+                os.environ['GEMINI_API_KEY'] = gemini_key_entry.get().strip()
+                os.environ['GEMINI_MODEL'] = gemini_model_combo.get().strip()
+            else:
+                os.environ['CUSTOM_API_URL'] = custom_url_entry.get().strip()
+                os.environ['CUSTOM_API_KEY'] = custom_key_entry.get().strip()
+                os.environ['CUSTOM_MODEL'] = custom_model_combo.get().strip()
 
-        env_lines = set_line(env_lines, 'API_PROVIDER', sel_p)
-        if sel_p == 'gemini':
-            env_lines = set_line(env_lines, 'GEMINI_API_KEY', gemini_key_entry.get().strip())
-            env_lines = set_line(env_lines, 'GEMINI_MODEL', gemini_model_combo.get().strip())
-        else:
-            env_lines = set_line(env_lines, 'CUSTOM_API_URL', custom_url_entry.get().strip())
-            env_lines = set_line(env_lines, 'CUSTOM_API_KEY', custom_key_entry.get().strip())
-            env_lines = set_line(env_lines, 'CUSTOM_MODEL', custom_model_combo.get().strip())
+            settings_manager.settings['api_provider'] = sel_p
+            if sel_p == 'gemini':
+                settings_manager.settings['gemini_model'] = gemini_model_combo.get().strip()
 
-        try:
-            with open(env_path, 'w', encoding='utf-8') as f:
-                f.writelines(env_lines)
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to write .env: {e}", parent=root)
-            return
+        # 2. Save Theme & Opacity (Step 2)
+        settings_manager.settings['popup_bg_color'] = selected_theme_var.get()
+        settings_manager.settings['popup_opacity'] = round(opacity_var.get() / 100.0, 2)
 
-        # Update environment in memory
-        os.environ['API_PROVIDER'] = sel_p
-        if sel_p == 'gemini':
-            os.environ['GEMINI_API_KEY'] = gemini_key_entry.get().strip()
-            os.environ['GEMINI_MODEL'] = gemini_model_combo.get().strip()
-        else:
-            os.environ['CUSTOM_API_URL'] = custom_url_entry.get().strip()
-            os.environ['CUSTOM_API_KEY'] = custom_key_entry.get().strip()
-            os.environ['CUSTOM_MODEL'] = custom_model_combo.get().strip()
-
-        # Update SettingsManager
-        settings_manager.settings['api_provider'] = sel_p
+        # 3. Save Quiz Mode (Step 3)
         settings_manager.settings['question_mode'] = mode_var.get()
-        if sel_p == 'gemini':
-            settings_manager.settings['gemini_model'] = gemini_model_combo.get().strip()
+
         settings_manager.save_settings()
 
         if config_manager:
@@ -797,11 +1069,38 @@ def show_initial_setup_dialog(
         result['success'] = True
         root.destroy()
 
-    def on_exit():
-        root.destroy()
+    def show_step(step_num):
+        current_step[0] = step_num
+        update_stepper_ui(step_num)
 
-    tk.Button(btn_box, text="🚀 Save & Start Assistant", command=on_save_start, font=("Segoe UI", 10, "bold"), bg="#0066cc", fg="white", padx=16, pady=4).pack(side=tk.RIGHT, padx=6)
-    tk.Button(btn_box, text="✕ Exit", command=on_exit, font=("Segoe UI", 9), padx=10, pady=4).pack(side=tk.RIGHT)
+        step1_frame.pack_forget()
+        step2_frame.pack_forget()
+        step3_frame.pack_forget()
+
+        if step_num == 1:
+            step1_frame.pack(fill=tk.BOTH, expand=True)
+        elif step_num == 2:
+            step2_frame.pack(fill=tk.BOTH, expand=True)
+        elif step_num == 3:
+            step3_frame.pack(fill=tk.BOTH, expand=True)
+
+        for w in btn_box.winfo_children():
+            w.destroy()
+
+        if step_num == 1:
+            tk.Button(btn_box, text="✕ Thoát (Exit)", command=on_exit, font=("Segoe UI", 9), padx=12, pady=4).pack(side=tk.LEFT)
+            tk.Button(btn_box, text="Tiếp tục (Next) ➡️", command=submit_step1, font=("Segoe UI", 9, "bold"), bg="#0284c7", fg="white", padx=16, pady=4).pack(side=tk.RIGHT)
+            tk.Button(btn_box, text="⏭️ Bỏ qua AI (Skip)", command=skip_step1, font=("Segoe UI", 9), bg="#475569", fg="white", padx=12, pady=4).pack(side=tk.RIGHT, padx=6)
+
+        elif step_num == 2:
+            tk.Button(btn_box, text="⬅️ Quay lại (Back)", command=lambda: show_step(1), font=("Segoe UI", 9), padx=12, pady=4).pack(side=tk.LEFT)
+            tk.Button(btn_box, text="Tiếp tục (Next) ➡️", command=lambda: show_step(3), font=("Segoe UI", 9, "bold"), bg="#0284c7", fg="white", padx=16, pady=4).pack(side=tk.RIGHT)
+
+        elif step_num == 3:
+            tk.Button(btn_box, text="⬅️ Quay lại (Back)", command=lambda: show_step(2), font=("Segoe UI", 9), padx=12, pady=4).pack(side=tk.LEFT)
+            tk.Button(btn_box, text="🚀 Hoàn tất & Khởi chạy (Finish & Start)", command=on_save_finish, font=("Segoe UI", 10, "bold"), bg="#16a34a", fg="white", padx=18, pady=4).pack(side=tk.RIGHT)
+
+    show_step(1)
 
     root.bind("<Escape>", lambda e: on_exit())
     root.protocol("WM_DELETE_WINDOW", on_exit)

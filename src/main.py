@@ -202,10 +202,14 @@ class QuizAssistantApp:
             if success:
                 self.config_manager.reload()
                 self.settings_manager.load_settings()
-                self.logger.info("Credentials configured successfully via setup dialog")
+                if self.config_manager.is_valid():
+                    self.logger.info(f"Loaded valid credentials for provider '{self.config_manager.get('API_PROVIDER', 'gemini')}'")
+                else:
+                    self.logger.info("Setup completed (AI provider skipped). Assistant running; configure API via Alt+S anytime.")
+                    self._latest_error = "⚠️ AI Provider chưa được cấu hình. Vui lòng bấm Alt+S để nhập API Key hoặc Endpoint."
             else:
-                self.logger.error("No valid credentials provided, exiting")
-                sys.exit(1)
+                self.logger.info("Setup cancelled by user, exiting")
+                sys.exit(0)
         else:
             self.logger.info(f"Loaded valid credentials for provider '{self.config_manager.get('API_PROVIDER', 'gemini')}'")
 
@@ -499,6 +503,11 @@ class QuizAssistantApp:
             self.logger.error(f"API processing error: {e}", exc_info=True)
             self._latest_error = err_msg
             self.request_manager.set_error(err_msg)
+            if not self.config_manager.is_valid() and hasattr(self, 'tray_manager') and self.tray_manager:
+                try:
+                    self.tray_manager.notify("AI Quiz Assistant", "⚠️ Chưa cấu hình AI. Nhấn Alt+S để nhập API Key.")
+                except Exception:
+                    pass
 
     def _execute_ai_analysis_with_failover(self, image_bytes: bytes, req_id: str) -> QuizResult:
         """
