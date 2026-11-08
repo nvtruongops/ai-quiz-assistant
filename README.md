@@ -114,7 +114,7 @@ python setup.py --all             # Install dependencies + run setup
 
 ### 🧙 First-Time Setup Wizard (3-Step Onboarding)
 When launching the application for the first time, a streamlined 3-step setup wizard guides you:
-1. 🤖 **AI Provider Configuration**: Choose between Google Gemini AI Studio or Custom Local / Proxy (Ollama, vLLM, LM Studio, OpenAI-compatible). Includes one-click `[ 🔄 Fetch Models ]` and `[ ⚡ Test Connection ]`. **Can be skipped** (`⏭️ Bỏ qua AI (Skip)`) if you want to explore the interface before entering API keys.
+1. 🤖 **AI Provider Configuration**: Choose between Google Gemini AI Studio or Custom Local / Proxy (Ollama, vLLM, LM Studio, OpenAI-compatible). Includes one-click `[ 🔄 Fetch Models ]` and `[ ⚡ Test Connection ]`. **Can be skipped** (`⏭️ Skip AI`) if you want to explore the interface before entering API keys.
 2. 🎨 **HUD Appearance & Theme**: Select your result card theme with real-time live preview (`👻 Stealth`, `⚪ Pure White`, `🌙 Dark Mode`, `🍦 Warm Cream`, `🔵 Soft Blue`, `🌫️ Modern Gray`) and configure HUD opacity.
 3. 🎯 **Quiz Mode & Hotkeys Reference**: Select your default solving mode (Quick Multiple Choice, MC + Explanation, or Essay) and review the core shortcut cheat sheet.
 

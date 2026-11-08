@@ -58,7 +58,7 @@ class TestInitialSetupWizard(unittest.TestCase):
             app.settings_manager.load_settings.assert_called_once()
             # Should have set latest error warning about missing AI
             self.assertIsNotNone(app._latest_error)
-            self.assertIn("chưa được cấu hình", app._latest_error.lower())
+            self.assertIn("not configured", app._latest_error.lower())
 
     def test_ensure_credentials_exit_handling(self):
         """Verify main.py _ensure_credentials calls sys.exit(0) when user cancels setup"""

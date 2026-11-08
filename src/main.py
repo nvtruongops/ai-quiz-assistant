@@ -206,7 +206,7 @@ class QuizAssistantApp:
                     self.logger.info(f"Loaded valid credentials for provider '{self.config_manager.get('API_PROVIDER', 'gemini')}'")
                 else:
                     self.logger.info("Setup completed (AI provider skipped). Assistant running; configure API via Alt+S anytime.")
-                    self._latest_error = "⚠️ AI Provider chưa được cấu hình. Vui lòng bấm Alt+S để nhập API Key hoặc Endpoint."
+                    self._latest_error = "⚠️ AI Provider not configured. Press Alt+S to configure API Key or Endpoint."
             else:
                 self.logger.info("Setup cancelled by user, exiting")
                 sys.exit(0)
@@ -505,7 +505,7 @@ class QuizAssistantApp:
             self.request_manager.set_error(err_msg)
             if not self.config_manager.is_valid() and hasattr(self, 'tray_manager') and self.tray_manager:
                 try:
-                    self.tray_manager.notify("AI Quiz Assistant", "⚠️ Chưa cấu hình AI. Nhấn Alt+S để nhập API Key.")
+                    self.tray_manager.notify("AI Quiz Assistant", "⚠️ AI not configured. Press Alt+S to configure API credentials.")
                 except Exception:
                     pass
 
@@ -518,7 +518,7 @@ class QuizAssistantApp:
         if not self.ai_client:
             self._initialize_ai_client()
         if not self.ai_client:
-            raise AIClientError("No AI client available. Please configure your API key or endpoint.")
+            raise AIClientError("No AI client available. Please configure your API key or endpoint via Alt+S.")
 
         primary_provider = self.config_manager.get('API_PROVIDER', 'gemini').strip().lower()
         failover_enabled = self.settings_manager.get('enable_provider_failover', True)
