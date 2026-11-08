@@ -38,7 +38,7 @@ except ImportError:
     from src.models import QuizResult
     from src.logger import Logger
 
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite"
 
 
 class GeminiAPIClient(BaseAIClient):
@@ -101,13 +101,21 @@ class GeminiAPIClient(BaseAIClient):
             if models:
                 def sort_key(name):
                     n = name.lower()
+                    if '3.1-flash-lite' in n:
+                        return (0, 0, n)
+                    if '3.5-flash-lite' in n:
+                        return (0, 1, n)
                     if 'flash-lite' in n:
-                        return (0, n)
+                        return (0, 2, n)
+                    if '3.1-flash' in n:
+                        return (1, 0, n)
+                    if '3.5-flash' in n:
+                        return (1, 1, n)
                     if 'flash' in n:
-                        return (1, n)
+                        return (1, 2, n)
                     if 'pro' in n:
-                        return (2, n)
-                    return (3, n)
+                        return (2, 0, n)
+                    return (3, 0, n)
                 models.sort(key=sort_key)
                 return True, models, f"Loaded {len(models)} models from Google Gemini"
             return False, [], "No generateContent models found for this API key"
@@ -134,7 +142,8 @@ class GeminiAPIClient(BaseAIClient):
                 contents="Reply with exactly 'OK'",
                 config=types.GenerateContentConfig(
                     max_output_tokens=10,
-                    temperature=0.1
+                    temperature=0.1,
+                    http_options=types.HttpOptions(timeout=10000)
                 )
             )
             latency = time.time() - start_time
@@ -151,15 +160,23 @@ class GeminiAPIClient(BaseAIClient):
                 return False, f"Model '{self.model_name}' not found", latency
             elif "RESOURCE_EXHAUSTED" in err_str:
                 return False, "Quota exceeded", latency
+            elif "DEADLINE_EXCEEDED" in err_str or "504" in err_str:
+                return False, f"Connection timed out ({self.model_name})", latency
+            elif "UNAVAILABLE" in err_str or "503" in err_str:
+                return False, f"Model overloaded (503): try a flash-lite model", latency
             return False, f"Gemini error: {err_str[:120]}", latency
 
         except Exception as e:
             latency = time.time() - start_time
-            return False, f"Connection error: {str(e)[:120]}", latency
+            err_str = str(e)
+            if "DEADLINE_EXCEEDED" in err_str or "504" in err_str or "timeout" in err_str.lower():
+                return False, f"Connection timed out ({self.model_name})", latency
+            return False, f"Connection error: {err_str[:120]}", latency
 
-    def analyze_quiz(self, image_bytes: bytes, timeout: int = 45) -> QuizResult:
+    def analyze_quiz(self, image_bytes: bytes, timeout: int = 35) -> QuizResult:
         """
-        Send screenshot to Gemini API and parse quiz questions
+        Send screenshot to Gemini API and parse quiz questions.
+        Enforces timeout in milliseconds via http_options.
         """
         if not self.client:
             raise AIClientError("Gemini client not initialized")
@@ -176,13 +193,17 @@ class GeminiAPIClient(BaseAIClient):
         ]
 
         try:
+            timeout_ms = int(timeout * 1000) if timeout else 35000
+            gen_config = types.GenerateContentConfig(
+                temperature=0.1,
+                top_p=0.95,
+                http_options=types.HttpOptions(timeout=timeout_ms)
+            )
+
             response = self.client.models.generate_content(
                 model=self.model_name,
                 contents=contents,
-                config=types.GenerateContentConfig(
-                    temperature=0.1,
-                    top_p=0.95,
-                )
+                config=gen_config
             )
 
             elapsed_time = time.time() - start_time
@@ -201,7 +222,10 @@ class GeminiAPIClient(BaseAIClient):
         except NoQuestionsFoundError:
             raise
 
-        except ClientError as e:
+        except TimeoutError:
+            raise
+
+        except (ClientError, APIError) as e:
             err_str = str(e)
             if self.logger:
                 self.logger.error(f"Gemini ClientError: {err_str}", exc_info=True)
@@ -209,9 +233,16 @@ class GeminiAPIClient(BaseAIClient):
                 raise AuthenticationError("Gemini API key is invalid")
             elif "NOT_FOUND" in err_str:
                 raise AIClientError(f"Model '{self.model_name}' not available. Please switch model in settings.")
-            raise AIClientError(f"Gemini API error: {err_str}")
+            elif "DEADLINE_EXCEEDED" in err_str or "504" in err_str:
+                raise TimeoutError(f"Gemini API timed out after {timeout}s ({self.model_name}). Please switch to a faster model (e.g. gemini-3.1-flash-lite) in Settings (Alt+S).")
+            elif "UNAVAILABLE" in err_str or "503" in err_str:
+                raise AIClientError(f"Gemini model '{self.model_name}' is currently overloaded (503). Please switch to gemini-3.1-flash-lite in Settings (Alt+S).")
+            raise AIClientError(f"Gemini API error: {err_str[:120]}")
 
         except Exception as e:
+            err_str = str(e)
+            if "DEADLINE_EXCEEDED" in err_str or "504" in err_str or "timeout" in err_str.lower():
+                raise TimeoutError(f"Gemini API timed out after {timeout}s ({self.model_name}). Please switch to gemini-3.1-flash-lite.")
             if self.logger:
                 self.logger.error(f"Gemini request failed: {e}", exc_info=True)
             raise AIClientError(f"Error calling Gemini API: {str(e)}")

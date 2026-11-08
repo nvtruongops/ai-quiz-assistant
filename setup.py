@@ -119,9 +119,9 @@ def setup_gemini():
             selected_model = models[0]
     else:
         print(f"⚠️ Could not load models automatically ({msg}).")
-        selected_model = input("Enter Gemini model name manually [e.g. gemini-2.5-flash]: ").strip()
+        selected_model = input("Enter Gemini model name manually [e.g. gemini-3.1-flash-lite]: ").strip()
         if not selected_model:
-            selected_model = "gemini-2.5-flash"
+            selected_model = "gemini-3.1-flash-lite"
 
     # Connection Test
     print(f"\n⏳ Testing connection with model '{selected_model}'...")
