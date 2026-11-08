@@ -72,22 +72,6 @@ class ConfigManager:
             'LOG_LEVEL': os.getenv('LOG_LEVEL', 'INFO'),
         }
 
-        # Check config.json for fallback / stored keys
-        if os.path.exists(self.config_file):
-            try:
-                with open(self.config_file, 'r', encoding='utf-8') as f:
-                    json_config = json.load(f)
-                    if not self.config['GEMINI_API_KEY'] and 'gemini_api_key' in json_config:
-                        import base64
-                        try:
-                            decoded = base64.b64decode(json_config['gemini_api_key']).decode()
-                            self.config['GEMINI_API_KEY'] = decoded
-                            os.environ['GEMINI_API_KEY'] = decoded
-                        except Exception:
-                            pass
-            except Exception:
-                pass
-
     def reload(self) -> None:
         """Reload configuration from disk"""
         self.load_config()

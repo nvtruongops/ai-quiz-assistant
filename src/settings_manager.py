@@ -78,6 +78,8 @@ class SettingsManager:
                     cfg = json.load(f)
                     for k, v in cfg.items():
                         self.settings[k] = v
+                    # Clean up legacy api key if previously stored in config.json
+                    self.settings.pop('gemini_api_key', None)
             except Exception:
                 pass
 
@@ -786,9 +788,6 @@ def show_initial_setup_dialog(
         settings_manager.settings['question_mode'] = mode_var.get()
         if sel_p == 'gemini':
             settings_manager.settings['gemini_model'] = gemini_model_combo.get().strip()
-            g_key = gemini_key_entry.get().strip()
-            if g_key:
-                settings_manager.settings['gemini_api_key'] = base64.b64encode(g_key.encode()).decode()
         settings_manager.save_settings()
 
         if config_manager:
@@ -1961,9 +1960,6 @@ def show_settings_dialog(
                     if settings_manager.get(hk_key) != new_v:
                         hotkeys_changed = True
                         settings_manager.settings[hk_key] = new_v
-
-            if gemini_key:
-                settings_manager.settings['gemini_api_key'] = base64.b64encode(gemini_key.encode()).decode()
 
             cur_dlg_w = dialog.winfo_width()
             cur_dlg_h = dialog.winfo_height()
