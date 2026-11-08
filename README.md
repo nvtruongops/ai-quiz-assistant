@@ -151,7 +151,7 @@ GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_MODEL=gemini-2.5-flash
 
 # Custom Local / Proxy API Configuration (OpenAI-compatible)
-CUSTOM_API_URL=http://127.0.0.1:11434/v1
+CUSTOM_API_URL=http://localhost:11434/v1
 CUSTOM_API_KEY=your_key_if_required
 CUSTOM_MODEL=llama3.2-vision
 

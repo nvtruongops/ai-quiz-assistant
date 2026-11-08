@@ -65,7 +65,7 @@ class ConfigManager:
             'API_PROVIDER': os.getenv('API_PROVIDER', 'gemini'),
             'GEMINI_API_KEY': os.getenv('GEMINI_API_KEY', ''),
             'GEMINI_MODEL': os.getenv('GEMINI_MODEL', ''),
-            'CUSTOM_API_URL': os.getenv('CUSTOM_API_URL', 'http://localhost:11434/v1'),
+            'CUSTOM_API_URL': (os.getenv('CUSTOM_API_URL') or '').strip() or 'http://localhost:11434/v1',
             'CUSTOM_API_KEY': os.getenv('CUSTOM_API_KEY', ''),
             'CUSTOM_MODEL': os.getenv('CUSTOM_MODEL', ''),
             'POPUP_POSITION': os.getenv('POPUP_POSITION', 'cursor'),

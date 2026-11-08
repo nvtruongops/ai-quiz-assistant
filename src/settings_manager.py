@@ -368,7 +368,7 @@ def show_initial_setup_dialog(
     cur_provider = os.getenv('API_PROVIDER', 'gemini')
     cur_gemini_key = os.getenv('GEMINI_API_KEY', '')
     cur_gemini_model = os.getenv('GEMINI_MODEL', '')
-    cur_custom_url = os.getenv('CUSTOM_API_URL', 'http://localhost:11434/v1')
+    cur_custom_url = (os.getenv('CUSTOM_API_URL') or '').strip()
     cur_custom_key = os.getenv('CUSTOM_API_KEY', '')
     cur_custom_model = os.getenv('CUSTOM_MODEL', '')
 
@@ -376,9 +376,14 @@ def show_initial_setup_dialog(
         cur_provider = config_manager.get('API_PROVIDER', cur_provider)
         cur_gemini_key = config_manager.get('GEMINI_API_KEY', cur_gemini_key)
         cur_gemini_model = config_manager.get('GEMINI_MODEL', cur_gemini_model)
-        cur_custom_url = config_manager.get('CUSTOM_API_URL', cur_custom_url)
+        cfg_custom_url = config_manager.get('CUSTOM_API_URL')
+        if cfg_custom_url and str(cfg_custom_url).strip():
+            cur_custom_url = str(cfg_custom_url).strip()
         cur_custom_key = config_manager.get('CUSTOM_API_KEY', cur_custom_key)
         cur_custom_model = config_manager.get('CUSTOM_MODEL', cur_custom_model)
+
+    if not cur_custom_url:
+        cur_custom_url = 'http://localhost:11434/v1'
 
     root = tk.Tk()
     root.title("AI Quiz Assistant 2.0 - Initial Setup Wizard")
@@ -616,7 +621,7 @@ def show_initial_setup_dialog(
     tk.Label(custom_frame, text="API Endpoint URL (Standard /v1):", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
     custom_url_entry = tk.Entry(custom_frame, font=("Segoe UI", 10))
     custom_url_entry.pack(fill=tk.X, pady=(2, 6))
-    custom_url_entry.insert(0, cur_custom_url)
+    custom_url_entry.insert(0, cur_custom_url or 'http://localhost:11434/v1')
 
     tk.Label(custom_frame, text="API Key (Optional for local / Bearer key for proxy):", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
     c_key_box = tk.Frame(custom_frame)
@@ -730,6 +735,9 @@ def show_initial_setup_dialog(
         else:
             gemini_frame.pack_forget()
             custom_frame.pack(fill=tk.X, expand=True)
+            if not custom_url_entry.get().strip():
+                custom_url_entry.delete(0, tk.END)
+                custom_url_entry.insert(0, "http://localhost:11434/v1")
 
     provider_var.trace_add("write", on_provider_toggle)
     on_provider_toggle()
@@ -1476,7 +1484,10 @@ def show_settings_dialog(
     tk.Label(custom_box, text="Endpoint URL (OpenAI-compatible):", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
     custom_url_entry = tk.Entry(custom_box, font=("Segoe UI", 9))
     custom_url_entry.pack(fill=tk.X, pady=(2, 6))
-    custom_url_entry.insert(0, os.getenv('CUSTOM_API_URL', 'http://localhost:11434/v1'))
+    cur_settings_custom_url = (os.getenv('CUSTOM_API_URL') or '').strip()
+    if not cur_settings_custom_url:
+        cur_settings_custom_url = 'http://localhost:11434/v1'
+    custom_url_entry.insert(0, cur_settings_custom_url)
 
     tk.Label(custom_box, text="API Key (Optional for local / Bearer key for proxy):", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
     custom_key_frame = tk.Frame(custom_box)

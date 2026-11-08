@@ -74,6 +74,12 @@ class TestInitialSetupWizard(unittest.TestCase):
                 app._ensure_credentials()
             self.assertEqual(cm.exception.code, 0)
 
+    def test_custom_api_url_default_fallback(self):
+        """Verify custom API URL defaults to http://localhost:11434/v1 even with empty env"""
+        with patch.dict(os.environ, {'CUSTOM_API_URL': ''}):
+            cm = ConfigManager(env_file="non_existent_test.env")
+            self.assertEqual(cm.get('CUSTOM_API_URL'), 'http://localhost:11434/v1')
+
 
 if __name__ == '__main__':
     unittest.main()

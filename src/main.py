@@ -220,7 +220,7 @@ class QuizAssistantApp:
         provider = (provider or '').strip().lower()
 
         if provider == 'custom':
-            custom_url = self.config_manager.get('CUSTOM_API_URL', 'http://localhost:11434/v1')
+            custom_url = (self.config_manager.get('CUSTOM_API_URL') or 'http://localhost:11434/v1').strip()
             custom_key = self.config_manager.get('CUSTOM_API_KEY', '')
             custom_model = self.config_manager.get('CUSTOM_MODEL', '')
             if not custom_url or not custom_model:
@@ -259,7 +259,7 @@ class QuizAssistantApp:
             if client:
                 self.ai_client = client
                 if provider == 'custom':
-                    custom_url = self.config_manager.get('CUSTOM_API_URL', 'http://localhost:11434/v1')
+                    custom_url = (self.config_manager.get('CUSTOM_API_URL') or 'http://localhost:11434/v1').strip()
                     custom_model = self.config_manager.get('CUSTOM_MODEL', '')
                     if hasattr(self, 'popup_manager') and self.popup_manager:
                         self.popup_manager.set_provider_info(f"Custom ({custom_model or 'model'})", mode)
