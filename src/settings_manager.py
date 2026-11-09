@@ -39,6 +39,15 @@ except ImportError:
         DOCUMENTATION_URL = "https://github.com/nvtruongops/ai-quiz-assistant#readme"
         GITHUB_ISSUES_URL = "https://github.com/nvtruongops/ai-quiz-assistant/issues"
 
+try:
+    from shortcut_manager import create_desktop_and_start_menu_shortcuts, get_default_install_dir
+except ImportError:
+    try:
+        from src.shortcut_manager import create_desktop_and_start_menu_shortcuts, get_default_install_dir
+    except ImportError:
+        create_desktop_and_start_menu_shortcuts = None
+        get_default_install_dir = None
+
 # Default application settings
 DEFAULT_SETTINGS = {
     'font_size': 10,
@@ -1273,6 +1282,19 @@ def show_initial_setup_dialog(
 
         tk.Label(row, text=desc, font=("Segoe UI", 8), fg="#64748b", anchor=tk.W).pack(side=tk.LEFT, fill=tk.X, expand=True)
 
+    # 3. Desktop & Start Menu Integration
+    sc_box = tk.LabelFrame(step3_frame, text=" 3. Desktop & Start Menu Shortcuts ", font=("Segoe UI", 9, "bold"), padx=12, pady=6)
+    sc_box.pack(fill=tk.X, pady=(6, 4))
+
+    create_shortcuts_var = tk.BooleanVar(value=True)
+    cb_sc = tk.Checkbutton(
+        sc_box,
+        text="Register Desktop & Start Menu shortcuts with official application icon",
+        variable=create_shortcuts_var,
+        font=("Segoe UI", 9)
+    )
+    cb_sc.pack(anchor=tk.W)
+
     note3 = tk.Label(
         step3_frame,
         text="💡 Upon clicking Finish, the assistant runs silently in your System Tray (bottom-right taskbar).\n"
@@ -1434,6 +1456,15 @@ def show_initial_setup_dialog(
         # Mark setup as completed so future runs start smoothly
         settings_manager.settings['setup_completed'] = True
         settings_manager.save_settings()
+
+        # 4. Register Desktop & Start Menu Shortcuts if requested
+        if create_shortcuts_var.get() and create_desktop_and_start_menu_shortcuts:
+            try:
+                target_exe = sys.executable if getattr(sys, "frozen", False) else os.path.join(PROJECT_ROOT, "run.pyw")
+                ico = get_resource_path(os.path.join("assets", "icon.ico"))
+                create_desktop_and_start_menu_shortcuts(target_exe, icon_path=ico)
+            except Exception:
+                pass
 
         if config_manager:
             config_manager.reload()
@@ -2707,6 +2738,77 @@ def show_settings_dialog(
     issue_btn = tk.Label(links_row, text="💬 Report Issue", font=("Segoe UI", 8, "underline"), fg="#0284c7", bg="#f8fafc", cursor="hand2")
     issue_btn.pack(side=tk.LEFT)
     issue_btn.bind("<Button-1>", lambda e: _open_url(GITHUB_ISSUES_URL))
+
+    # Shell Integration & Storage Box
+    shell_box = ttk.LabelFrame(tab_data, text=" 🖥️ Windows Shell & Storage Integration ", padding=10)
+    shell_box.pack(fill=tk.X, pady=(10, 8))
+
+    tk.Label(shell_box, text=f"• App Location: {PROJECT_ROOT}", font=("Segoe UI", 8), fg="#475569").pack(anchor=tk.W)
+    logs_dir = os.path.join(PROJECT_ROOT, "logs")
+    tk.Label(shell_box, text=f"• Logs & Data: {logs_dir}", font=("Segoe UI", 8), fg="#475569").pack(anchor=tk.W, pady=(1, 6))
+
+    shell_btn_row = tk.Frame(shell_box)
+    shell_btn_row.pack(fill=tk.X)
+
+    def do_create_shortcuts():
+        if not create_desktop_and_start_menu_shortcuts:
+            messagebox.showerror("Error", "Shortcut manager module not available.", parent=dialog)
+            return
+        try:
+            target_exe = sys.executable if getattr(sys, "frozen", False) else os.path.join(PROJECT_ROOT, "run.pyw")
+            ico = get_resource_path(os.path.join("assets", "icon.ico"))
+            ok, msg = create_desktop_and_start_menu_shortcuts(target_exe, icon_path=ico)
+            if ok:
+                messagebox.showinfo("Success", "Desktop and Start Menu shortcuts created successfully with official high-resolution icon!", parent=dialog)
+            else:
+                messagebox.showwarning("Notice", msg, parent=dialog)
+        except Exception as ex:
+            messagebox.showerror("Error", f"Failed to create shortcuts: {ex}", parent=dialog)
+
+    def do_open_app_folder():
+        try:
+            os.startfile(PROJECT_ROOT)
+        except Exception as ex:
+            messagebox.showerror("Error", f"Could not open directory: {ex}", parent=dialog)
+
+    def do_open_logs_folder():
+        try:
+            os.makedirs(logs_dir, exist_ok=True)
+            os.startfile(logs_dir)
+        except Exception as ex:
+            messagebox.showerror("Error", f"Could not open directory: {ex}", parent=dialog)
+
+    tk.Button(
+        shell_btn_row,
+        text="📌 Create / Update Shortcuts",
+        command=do_create_shortcuts,
+        font=("Segoe UI", 8, "bold"),
+        bg="#0284c7",
+        fg="white",
+        padx=10,
+        pady=3,
+        cursor="hand2"
+    ).pack(side=tk.LEFT, padx=(0, 6))
+
+    tk.Button(
+        shell_btn_row,
+        text="📂 Open App Folder",
+        command=do_open_app_folder,
+        font=("Segoe UI", 8),
+        padx=8,
+        pady=3,
+        cursor="hand2"
+    ).pack(side=tk.LEFT, padx=(0, 6))
+
+    tk.Button(
+        shell_btn_row,
+        text="📂 Open Logs Folder",
+        command=do_open_logs_folder,
+        font=("Segoe UI", 8),
+        padx=8,
+        pady=3,
+        cursor="hand2"
+    ).pack(side=tk.LEFT)
 
     # Global MouseWheel Scroll for active tab
     def on_dialog_mousewheel(event):

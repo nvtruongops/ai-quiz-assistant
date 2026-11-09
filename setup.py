@@ -266,6 +266,43 @@ def launch_gui_setup():
     return ok
 
 
+def register_shortcuts():
+    """Register Desktop & Start Menu shortcuts with official application icon"""
+    print("\n" + "=" * 60)
+    print("📌 REGISTER WINDOWS SHORTCUTS & APP ICON")
+    print("=" * 60)
+    try:
+        from shortcut_manager import create_desktop_and_start_menu_shortcuts, register_windows_app
+    except ImportError:
+        from src.shortcut_manager import create_desktop_and_start_menu_shortcuts, register_windows_app
+
+    target_exe = os.path.join(PROJECT_ROOT, "dist", "QuizAssistant.exe")
+    if not os.path.exists(target_exe):
+        target_exe = os.path.join(PROJECT_ROOT, "run.pyw")
+    ico_path = os.path.join(PROJECT_ROOT, "assets", "icon.ico")
+
+    ok, msg = create_desktop_and_start_menu_shortcuts(target_exe, icon_path=ico_path)
+    if ok:
+        print(f"✅ {msg}")
+        reg_ok, reg_msg = register_windows_app(PROJECT_ROOT, target_exe, icon_path=ico_path)
+        if reg_ok:
+            print("✅ Registered in Windows Apps & Features with official application icon")
+        return True
+    else:
+        print(f"❌ Failed to create shortcuts: {msg}")
+        return False
+
+
+def launch_installer_gui():
+    """Launch the Graphical Setup & Installation Wizard"""
+    print("\n📦 Launching Graphical Setup & Installation Wizard...")
+    try:
+        import installer
+        installer.main()
+    except Exception as e:
+        print(f"❌ Failed to launch installer GUI: {e}")
+
+
 def setup_wizard_menu():
     """Interactive CLI menu"""
     while True:
@@ -275,12 +312,14 @@ def setup_wizard_menu():
         print("1. Install / Update Python Requirements (pip install -r requirements.txt)")
         print("2. Configure Google Gemini AI Studio (Dynamic Model Fetching)")
         print("3. Configure Custom Provider (Ollama/vLLM/LM Studio - Dynamic Model Fetching)")
-        print("4. Launch Graphical Setup Wizard (GUI)")
-        print("5. Full Setup (Install Dependencies + Configure AI)")
-        print("6. Exit")
+        print("4. Launch Graphical 3-Step Setup Wizard (GUI)")
+        print("5. Register Desktop & Start Menu Shortcuts with App Icon")
+        print("6. Launch Graphical Setup & Installation Wizard (Choose Location & Install)")
+        print("7. Full Setup (Install Dependencies + Configure AI + Register Shortcuts)")
+        print("8. Exit")
         print("-" * 60)
 
-        choice = input("Select an option [1-6]: ").strip()
+        choice = input("Select an option [1-8]: ").strip()
         if choice == '1':
             install_requirements()
         elif choice == '2':
@@ -290,17 +329,22 @@ def setup_wizard_menu():
         elif choice == '4':
             launch_gui_setup()
         elif choice == '5':
+            register_shortcuts()
+        elif choice == '6':
+            launch_installer_gui()
+        elif choice == '7':
             if install_requirements():
                 prov = input("\nSelect Provider to configure (1=Gemini, 2=Custom): ").strip()
                 if prov == '2':
                     setup_custom()
                 else:
                     setup_gemini()
-        elif choice in ('6', 'q', 'exit'):
+                register_shortcuts()
+        elif choice in ('8', 'q', 'exit'):
             print("Setup wizard exited.")
             break
         else:
-            print("Invalid choice, please select between 1 and 6.")
+            print("Invalid choice, please select between 1 and 8.")
 
 
 def main():
@@ -310,9 +354,13 @@ def main():
     parser.add_argument("--setup-ai", "-a", action="store_true",
                         help="Configure AI Provider credentials & models only")
     parser.add_argument("--gui", "-g", action="store_true",
-                        help="Launch the Graphical Setup Wizard")
+                        help="Launch the Graphical 3-Step Setup Wizard")
+    parser.add_argument("--shortcuts", "-s", action="store_true",
+                        help="Register Desktop & Start Menu shortcuts with official application icon")
+    parser.add_argument("--installer", action="store_true",
+                        help="Launch the Graphical Setup & Installation Wizard")
     parser.add_argument("--all", action="store_true",
-                        help="Run full setup (install dependencies then configure AI)")
+                        help="Run full setup (install dependencies, configure AI, register shortcuts)")
 
     args = parser.parse_args()
 
@@ -330,9 +378,14 @@ def main():
             setup_gemini()
     elif args.gui:
         launch_gui_setup()
+    elif args.shortcuts:
+        register_shortcuts()
+    elif args.installer:
+        launch_installer_gui()
     elif args.all:
         if install_requirements():
             setup_gemini()
+            register_shortcuts()
     else:
         setup_wizard_menu()
 

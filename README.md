@@ -85,19 +85,31 @@ A high-performance Windows desktop assistant that silently captures exam questio
 
 ## 🚀 Installation & Quick Start
 
+### 📦 Option 1: Official Windows Installer (Recommended)
+Download and run **`AI-Quiz-Assistant-Setup.exe`**:
+1. **Choose Destination Folder**: Select your preferred installation directory (`%LOCALAPPDATA%\Programs\AI Quiz Assistant` or custom).
+2. **Register Official Icon**: Automatically creates Desktop and Start Menu shortcuts with the official high-resolution icon (16x16 to 256x256), and registers in Windows Apps & Features.
+3. **Launch & 3-Step Setup**: Automatically launches the app upon finish, opening the 3-step setup onboarding wizard.
+
+---
+
+### 💻 Option 2: Run from Python Source
+
 ```bash
 # 1. Clone repository
 git clone https://github.com/nvtruongops/ai-quiz-assistant.git
 cd ai-quiz-assistant
 
-# 2. Run setup wizard (interactive CLI menu)
+# 2. Run setup wizard (interactive CLI & GUI tools)
 python setup.py
 
 # Or run specific setup options:
 python setup.py --install-deps    # Install or upgrade dependencies only
 python setup.py --setup-ai        # Configure AI credentials & dynamically fetch models only
-python setup.py --gui             # Open the Graphical Setup Wizard
-python setup.py --all             # Install dependencies + run setup
+python setup.py --gui             # Open the Graphical 3-Step Setup Wizard
+python setup.py --shortcuts       # Register Desktop & Start Menu shortcuts with App Icon
+python setup.py --installer       # Open Graphical Windows Setup Installer
+python setup.py --all             # Install dependencies + run setup + register shortcuts
 ```
 
 ### Running the Application
