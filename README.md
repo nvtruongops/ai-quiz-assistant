@@ -17,7 +17,9 @@
 
 ---
 
-A high-performance Windows desktop assistant that silently captures exam questions from your screen, solves them using multimodal AI (**Google Gemini AI Studio** or **Custom Local / OpenAI-compatible API**), and presents answers in an elegant, non-intrusive floating HUD.
+A Windows desktop assistant that captures quiz questions from your screen, analyzes them with multimodal AI (**Google Gemini AI Studio** or a **Custom Local / OpenAI-compatible API**), and presents results in a floating HUD.
+
+> **Platform:** Windows 10/11 (64-bit). This repository does not currently provide an Android app or APK.
 
 ---
 
@@ -33,7 +35,7 @@ A high-performance Windows desktop assistant that silently captures exam questio
   - **Seamless Rate Limit / Quota Failover**: If your primary provider exhausts its token quota (HTTP 429 ResourceExhausted), times out, or encounters a server error, requests automatically rotate to your configured alternate provider (e.g., Gemini ➡️ Local Ollama/vLLM or vice versa) without dropping captured questions.
   - **Uninterrupted Auto-Fill**: Automated clicking seamlessly continues even if a failover occurred mid-analysis.
   - **HUD Transparency**: Badges automatically tag fallback results with `(Backup)` so you always know which model resolved your question.
-  - **Smart Token Conservation**: Bypasses rotation when a screenshot genuinely contains no questions (`NoQuestionsFoundError`), preserving alternate quota.
+  - **Quota-aware behavior**: Bypasses rotation when a screenshot contains no questions (`NoQuestionsFoundError`).
   - **Configurable in Settings**: Easily toggled on or off with live backup readiness indicators in Tab 1 (AI Provider).
 
 - 📸 **Silent Background Processing**:
@@ -44,7 +46,7 @@ A high-performance Windows desktop assistant that silently captures exam questio
 - ⚡ **Automated Screen Recognition & Auto-Fill (`Alt + X`)**:
   - **End-to-End Hands-Free**: Captures the quiz screen, recognizes questions and options using multimodal spatial coordinates (`normalized [y, x]`), solves the quiz, and automatically guides the mouse cursor to click the correct answer choices.
   - **Multi-Question & Multi-Select Support**: Seamlessly executes sequential clicks in order for exams containing multiple questions or multi-option checkboxes.
-  - **Human-like Smooth Movement & Cursor Restore**: Configurable cosine ease movement, inter-click delay (default 200ms), and automatic cursor return to its original position upon completion.
+  - **Configurable Movement & Cursor Restore**: Configurable movement smoothing, inter-click delay (default 200ms), and cursor return to its original position upon completion.
   - **Safety Abort Mechanism**: Can be safely aborted at any moment or disabled entirely in the Settings dialog.
 
 - ⚡ **FIFO Queue & dHash Deduplication**:
@@ -60,7 +62,7 @@ A high-performance Windows desktop assistant that silently captures exam questio
   - **Interactive Drag Resizing**: Resize HUD result cards (`Alt + C` & `Alt + H`) interactively using corner drag grippers (`◢`) or borders.
   - **Dynamic Size Memory**: A dynamic `💾 Save Size` button appears when resized, allowing you to persist your custom width and height across sessions.
   - **Built-in Screen Eyedropper**: Sample any screen pixel to match HUD background color with exam portal themes.
-  - **Smart Contrast Engine**: Automatically calculates WCAG-compliant text, border, and badge colors for light and dark themes.
+  - **Adaptive Contrast Colors**: Calculates text, border, and badge colors for light and dark themes; this is not a complete WCAG accessibility conformance claim.
   - **Quick HUD Presets**: One-click styling including `White`, `Gray`, `Cream`, `Blue`, `Dark`, and `👻 Stealth` (borderless, pure white matching, muted slate-gray text, and non-bold font for ultra-discreet viewing).
   - Frameless, draggable, mouse-wheel scrollable, with configurable window width, font size, and opacity (50% - 100%).
 
@@ -71,15 +73,16 @@ A high-performance Windows desktop assistant that silently captures exam questio
 - 📁 **Complete Privacy, Safe Data Management & System Tray Quick-Access**:
   - **System Tray Quick Folders**: One-click tray menu actions to open Logs and Screenshots directories directly in Windows Explorer.
   - **One-Click Data Wipe**: Clear in-memory history, deduplication cache, on-disk logs, and screenshot captures simultaneously.
-  - **Zero Secrets / Zero Leaks**: Strict `.gitignore` enforcement for `.env`, `config.json`, logs, and cache; all keys masked with zero hardcoded paths or credentials.
+  - **Credential handling**: `.env`, `config.json`, logs, and cache are excluded by `.gitignore`. Keep credentials private; this does not guarantee that every runtime log or external provider is free of sensitive data.
 
 ---
 
 ## 💻 System Requirements
 
 - **Operating System**: Windows 10 / Windows 11 (64-bit)
-- **Python**: 3.10 - 3.13+
-- **Internet connection** for Google Gemini AI Studio, or a local inference server for Custom Provider.
+- **Python**: 3.10+ when running from source; not required for the packaged installer
+- **Network** for Google Gemini AI Studio, or a running local/OpenAI-compatible server for Custom Provider
+- **Android/APK**: not supported by this Windows desktop release; this repository does not include an Android client or APK build configuration.
 
 ---
 
@@ -87,9 +90,11 @@ A high-performance Windows desktop assistant that silently captures exam questio
 
 ### 📦 Option 1: Official Windows Installer (Recommended)
 Download and run **`QuizAssistant.exe`** (the installer; the app executable is installed afterward):
-1. **Choose Destination Folder**: Select your preferred installation directory (`%LOCALAPPDATA%\Programs\AI Quiz Assistant` or custom).
-2. **Register Official Icon**: Automatically creates Desktop and Start Menu shortcuts with the official high-resolution icon (16x16 to 256x256), and registers in Windows Apps & Features.
-3. **Launch & 3-Step Setup**: Automatically launches the app upon finish, opening the 3-step setup onboarding wizard.
+1. **Choose Destination Folder**: Select your preferred installation directory (default: `%LOCALAPPDATA%\Programs\AI Quiz Assistant`, or choose another folder).
+2. **Register Shortcuts**: Optionally create Desktop and Start Menu shortcuts and register the app in Windows Apps & Features.
+3. **Launch & Setup**: Launch the installed app and complete its first-run AI provider, HUD, and hotkey setup.
+
+The installer is the single distributable file `dist\QuizAssistant.exe`; it embeds the app executable. The installed app is also named `QuizAssistant.exe`. Runtime settings, API credentials, logs, screenshots, and answer history are stored under `%APPDATA%\AI Quiz Assistant`, not beside the installer. On first app launch, existing `.env`, `config.json`, and `logs` in the app's installation directory are copied only when the corresponding AppData destination is absent; the originals are retained. This migration applies to legacy data in the app installation directory, not to an arbitrary folder from which the downloaded installer is run.
 
 ---
 
@@ -152,7 +157,7 @@ When launching the application for the first time, a streamlined 3-step setup wi
 
 ## ⚙️ Configuration File (`.env`)
 
-You can edit `.env` directly or use the graphical Settings Dialog (`Alt + S`):
+For a packaged install, credentials and configuration are stored in `%APPDATA%\AI Quiz Assistant\.env`; use the graphical Settings Dialog (`Alt + S`) to update them. For source/development runs, `.env` is read from the repository root.
 
 ```ini
 # AI Provider Selection: 'gemini' or 'custom'
@@ -176,31 +181,20 @@ LOG_LEVEL=INFO
 
 ## 🧪 Verification & Automated Tests
 
-Run the full automated test suite located in `/test` to verify all core components:
+Run the automated tests located in `/test` with pytest:
 
 ```bash
-# Run all automated tests via standard test discovery
-python -m unittest discover -s test -p "test_*.py"
+python -m pytest -q -p no:cacheprovider
 
-# Or run specific test suites in the test/ directory:
-# Verify FIFO queue, silent processing, and image deduplication
-python test/test_queue_and_image_cache.py
-
-# Verify navigation, reload, and silent queue mechanics
-python test/test_fix_jump_and_silent_queue.py
-
-# Verify settings dialog and GUI components
-python test/test_settings_dialog_gui.py
-
-# Verify scaling, interactive resizing, and tray folder opening
-python test/test_scaling_and_folder_opening.py
+# Optional focused test example
+python -m pytest test/test_path_utils_appdata.py -q -p no:cacheprovider
 ```
 
 ---
 
 ## 📦 Building Standalone Executable (.EXE)
 
-AI Quiz Assistant provides an automated production build pipeline that compiles the app into a single standalone Windows executable (`QuizAssistant.exe`) with all dependencies, assets, and version metadata bundled.
+AI Quiz Assistant provides a Windows build pipeline that first creates the app executable in an intermediate directory, then embeds it in a graphical installer. The distributable is one file, `dist\QuizAssistant.exe`; this outer executable is the installer, not a portable copy of the app.
 
 ### Option 1: One-Click Build Script (Recommended)
 Simply run the included build script:
@@ -219,12 +213,17 @@ The automated pipeline will:
 4. Embed the app executable in the graphical installer.
 5. Leave only `dist/QuizAssistant.exe` (the installer) for distribution.
 
-### Option 2: Manual PyInstaller Build
+### Build the distributable installer
+
+Use the complete pipeline; do not build `QuizAssistant.spec` alone when preparing a release, because that creates only the intermediate app executable, not the installer.
+
 ```bash
-pip install pyinstaller
-pyinstaller --clean --noconfirm QuizAssistant.spec
+build.bat
+# or
+python build_exe.py
 ```
-The app executable is only an intermediate build artifact; use `build.bat` to create the distributable installer at `dist/QuizAssistant.exe`.
+
+Expected release output: exactly one file, `dist\QuizAssistant.exe`. The app binary is embedded inside it. Build intermediates are under `build/`.
 
 ---
 
@@ -233,18 +232,18 @@ The app executable is only an intermediate build artifact; use `build.bat` to cr
 | Resource | Official Production URL | Description |
 |---|---|---|
 | **GitHub Repository** | [github.com/nvtruongops/ai-quiz-assistant](https://github.com/nvtruongops/ai-quiz-assistant) | Source code, updates, and branch management |
-| **Releases & Downloads** | [github.com/nvtruongops/ai-quiz-assistant/releases](https://github.com/nvtruongops/ai-quiz-assistant/releases) | Pre-built Windows binaries, portable zip packages, changelogs |
+| **Releases & Downloads** | [github.com/nvtruongops/ai-quiz-assistant/releases](https://github.com/nvtruongops/ai-quiz-assistant/releases) | Windows installer releases and changelogs (when published) |
 | **Documentation & Guides** | [github.com/nvtruongops/ai-quiz-assistant#readme](https://github.com/nvtruongops/ai-quiz-assistant#readme) | Full installation, configuration, and troubleshooting documentation |
 | **Issues & Feedback** | [github.com/nvtruongops/ai-quiz-assistant/issues](https://github.com/nvtruongops/ai-quiz-assistant/issues) | Bug reports, feature suggestions, and community support |
 | **Google AI Studio API Key** | [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) | Official portal to generate free Gemini multimodal API keys |
 | **Default Local Vision Endpoint** | `http://localhost:11434/v1` | Standard OpenAI-compatible endpoint for Ollama / vLLM / LM Studio |
-| **Default Local Vision Model** | `llama3.2-vision` | Lightweight, high-accuracy multimodal model for 100% offline quiz solving |
+| **Default Local Vision Model** | `llama3.2-vision` | Example local multimodal model; offline use requires the local inference server and model to be installed and running |
 
 ---
 
 ## 🛡️ License
 
-This project is open-source software licensed under the **[MIT License](LICENSE)**:
+This project is open-source software licensed under the **[MIT License](LICENSE)**. The installer build output is produced locally; a Git push does not itself publish or attach a downloadable release asset. A separate GitHub Release is required to offer the installer as a direct download.
 
 ```text
 MIT License

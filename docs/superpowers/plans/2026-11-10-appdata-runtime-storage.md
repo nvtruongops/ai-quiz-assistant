@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Store runtime user data under `%APPDATA%\AI Quiz Assistant`, keep the installed program folder minimal, and leave only the setup installer executable in the final `dist` output.
+**Goal:** Store runtime user data under `%APPDATA%\AI Quiz Assistant`, keep the installed program folder minimal, and leave only `dist\QuizAssistant.exe` (the installer containing the app executable) in the final output.
 
-**Architecture:** Update the shared runtime directory resolver in `src/path_utils.py`; keep source-mode paths and frozen read-only resource paths unchanged. Copy legacy `.env`, `config.json`, and `logs/` into AppData only when the respective destination is absent. Adjust installer copy behavior and make the build pipeline clean intermediate and portable outputs only after bundling the app executable into the installer.
+**Architecture:** Update the shared runtime directory resolver in `src/path_utils.py`; keep source-mode paths and frozen read-only resource paths unchanged. On app launch, copy legacy `.env`, `config.json`, and `logs/` from the installed app directory to AppData only when each destination is absent. Adjust installer copy behavior and make the build pipeline stage the app then embed it in the installer.
 
 **Tech Stack:** Python 3, PyInstaller, pytest/unittest.
 
@@ -40,24 +40,24 @@
 - `get_app_dir() -> str` remains the runtime root used by settings, config, logs, screenshots, and answers.
 - Add internal migration helper only if needed; avoid new public abstractions unless tests require them.
 
-- [ ] **Step 1: Write failing tests** for frozen mode returning `%APPDATA%\AI Quiz Assistant`, source mode returning repository root, legacy `.env`/`config.json`/`logs` copied without deleting source, and pre-existing target preserved.
-- [ ] **Step 2: Run focused tests** with `python -m pytest test/test_path_utils.py -q`; confirm failures assert current exe-directory behavior/missing migration.
-- [ ] **Step 3: Implement the minimal resolver and first-run copy** in `src/path_utils.py`; use `APPDATA` when set, otherwise `LOCALAPPDATA` as per-user fallback. Copy each legacy item only when source exists and destination does not.
-- [ ] **Step 4: Re-run focused tests**; expected all pass.
+- [x] **Step 1: Write failing tests** for frozen mode returning `%APPDATA%\AI Quiz Assistant`, source mode returning repository root, legacy app-directory `.env`/`config.json`/`logs` copied without deleting source, and pre-existing AppData targets preserved.
+- [x] **Step 2: Run focused tests** and confirm they failed on the original executable-directory behavior.
+- [x] **Step 3: Implement the minimal resolver and first-run app-data migration** in `src/path_utils.py`; use `APPDATA` when set, otherwise the per-user `AppData\Roaming` fallback. Copy each legacy item from the installed app directory only when source exists and corresponding destination does not.
+- [x] **Step 4: Re-run focused tests**; they pass.
 
 ### Task 2: Keep installed program directory lean
 
 **Files:**
 - Modify: `installer.py`
-- Test: `test/test_installer_and_shortcuts.py` (existing file was deleted in current worktree; do not restore user-deleted tests—create focused test if needed)
+- Test: `test/test_installer_minimal_files.py` (focused regression test for installer payload; existing installer/shortcut regression tests are retained)
 
 **Interfaces:**
 - Installer continues to install the embedded `QuizAssistant.exe` and generate `uninstall.bat`.
 
-- [ ] **Step 1: Add a focused test** asserting installer does not copy `.env.example`, README files, or assets into the installation directory; app EXE and uninstaller remain present (test through extracted copy logic if practical).
-- [ ] **Step 2: Run focused test** and confirm expected failure against current copy loop.
-- [ ] **Step 3: Remove only the documentation/template/assets deployment block** from `run_installation`; no asset copy needed because bundled app resources are internal and data is moved to AppData.
-- [ ] **Step 4: Re-run focused test**; expected pass.
+- [x] **Step 1: Add a focused test** asserting installer does not copy `.env.example`, README files, or assets into the installation directory; app EXE and uninstaller remain present where exercised.
+- [x] **Step 2: Run focused test** and confirm expected failure against the original copy loop.
+- [x] **Step 3: Remove documentation/template/assets deployment** from `run_installation`; bundle only the installer icon, while app resources remain embedded in the app executable.
+- [x] **Step 4: Re-run focused tests**; they pass.
 
 ### Task 3: Produce one distributable installer in `dist`
 
@@ -66,20 +66,21 @@
 - Test: `test/test_build_exe.py` (create)
 
 **Interfaces:**
-- `run_pyinstaller()` still builds app first, then installer which embeds `dist/QuizAssistant.exe` via `Installer.spec`.
+- `run_pyinstaller()` builds app to `build/app-dist/QuizAssistant.exe`, then installer to `build/installer-dist/QuizAssistant-Installer.exe`; `Installer.spec` embeds the app.
 - `assemble_distribution()` becomes a cleanup/finalization step leaving only the setup executable in `dist`.
 
-- [ ] **Step 1: Write failing tests** for finalization retaining only `QuizAssistant.exe` as the installer, refusing to claim success without installer EXE, and not deleting/interfering with artifacts before installer creation.
-- [ ] **Step 2: Run focused tests**; confirm current portable packaging behavior fails.
-- [ ] **Step 3: Replace portable folder/ZIP/checksum assembly with safe final cleanup** after confirming both source executables exist; leave only `dist/QuizAssistant.exe` (the installer) and keep app build intermediates outside `dist`.
-- [ ] **Step 4: Re-run focused tests**; expected pass.
+- [x] **Step 1: Write failing tests** for finalization retaining only `QuizAssistant.exe` as the installer and preserving existing `dist` on missing staged installer.
+- [x] **Step 2: Run focused tests** and confirm they failed against the previous packaging behavior.
+- [x] **Step 3: Replace portable folder/ZIP/checksum assembly with staged build and finalization** after verifying app and installer binaries; leave only `dist/QuizAssistant.exe` and keep intermediates outside `dist`.
+- [x] **Step 4: Re-run focused tests**; they pass.
 
 ### Task 4: Regression and build verification
 
 **Files:**
 - No additional production files.
 
-- [ ] **Step 1: Run focused test suite** for path resolver, installer behavior, and build output.
-- [ ] **Step 2: Run repository test discovery** with `python -m pytest -q`; report failures explicitly, noting existing tracked test deletions were present before changes.
-- [ ] **Step 3: Run build pipeline if installed dependencies permit**; verify `dist` has exactly `QuizAssistant.exe` and do not execute it.
-- [ ] **Step 4: Review `git diff`** to confirm no deleted user files were restored, no existing config/log data was removed, and scope matches spec.
+- [x] **Step 1: Run focused and full regression tests**; latest full-suite result: 102 passed, 1 skipped (warnings remain in legacy UI/test collection).
+- [x] **Step 2: Run repository test discovery** with `python -m pytest -q -p no:cacheprovider`; confirmed all restored tracked tests are collected.
+- [x] **Step 3: Run the Windows PyInstaller build**; verified `dist` has exactly `QuizAssistant.exe`, and did not execute it.
+- [x] **Step 4: Inspect installer archive and staged diff**; confirmed embedded app executable/icon and no test, `.env`, or README payload; `.env` remains ignored and untracked.
+- [ ] **Step 5: Interactive install/upgrade/uninstall smoke test on a Windows desktop**; not run in this session, so release readiness remains conditional. No GitHub Release or installer upload was performed.
