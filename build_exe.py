@@ -78,168 +78,93 @@ def check_prerequisites() -> bool:
 
 
 def clean_previous_builds():
-    """Remove previous build and temporary directories."""
+    """Clean intermediate builds while preserving the previous release until replacement is ready."""
     print("\n🧹 [2/5] Cleaning previous build artifacts...")
-    dirs_to_clean = ["build", "dist"]
-    for d in dirs_to_clean:
-        p = os.path.join(PROJECT_ROOT, d)
-        if os.path.exists(p):
-            try:
-                shutil.rmtree(p)
-                print(f"  ✅ Removed {d}/")
-            except Exception as e:
-                print(f"  ⚠️ Could not completely remove {d}/: {e}")
+    build_dir = os.path.join(PROJECT_ROOT, "build")
+    if os.path.exists(build_dir):
+        try:
+            shutil.rmtree(build_dir)
+            print("  ✅ Removed build/")
+        except Exception as e:
+            print(f"  ⚠️ Could not completely remove build/: {e}")
+
+
+def has_required_app_executable(app_exe: str) -> bool:
+    """Return whether the app executable required for embedding exists."""
+    return os.path.isfile(app_exe)
 
 
 def run_pyinstaller() -> bool:
-    """Execute PyInstaller to compile both QuizAssistant.exe and AI-Quiz-Assistant-Setup.exe."""
-    # 1. Compile QuizAssistant.exe
-    print(f"\n⚙️ [3/5] (a) Compiling {APP_DISPLAY_NAME} into standalone executable...")
-    spec_path = os.path.join(PROJECT_ROOT, "QuizAssistant.spec")
-    
-    cmd1 = [
-        sys.executable,
-        "-m",
-        "PyInstaller",
-        "--clean",
-        "--noconfirm",
-        spec_path
-    ]
-    
-    t0 = time.time()
+    """Build the app in a staging directory, then embed it in the installer."""
+    app_dist = os.path.join(PROJECT_ROOT, "build", "app-dist")
+    app_work = os.path.join(PROJECT_ROOT, "build", "app")
+    app_spec = os.path.join(PROJECT_ROOT, "QuizAssistant.spec")
+    print(f"\n⚙️ [3/5] Building {APP_DISPLAY_NAME} for embedding...")
     try:
-        subprocess.run(cmd1, cwd=PROJECT_ROOT, check=True)
-        dur1 = round(time.time() - t0, 1)
-        print(f"  ✅ Standalone app compiled in {dur1}s: dist/QuizAssistant.exe")
-    except subprocess.CalledProcessError as e:
-        print(f"  ❌ App compilation failed with exit code {e.returncode}")
-        return False
+        subprocess.run([
+            sys.executable, "-m", "PyInstaller", "--clean", "--noconfirm",
+            "--distpath", app_dist, "--workpath", app_work, app_spec
+        ], cwd=PROJECT_ROOT, check=True)
     except Exception as ex:
-        print(f"  ❌ PyInstaller execution error: {ex}")
+        print(f"  ❌ App compilation failed: {ex}")
         return False
 
-    # 2. Compile AI-Quiz-Assistant-Setup.exe (Installer)
-    print(f"\n⚙️ [3/5] (b) Compiling Windows Setup Installer (AI-Quiz-Assistant-Setup.exe)...")
-    installer_spec = os.path.join(PROJECT_ROOT, "Installer.spec")
-    cmd2 = [
-        sys.executable,
-        "-m",
-        "PyInstaller",
-        "--noconfirm",
-        installer_spec
-    ]
-    t1 = time.time()
-    try:
-        subprocess.run(cmd2, cwd=PROJECT_ROOT, check=True)
-        dur2 = round(time.time() - t1, 1)
-        print(f"  ✅ Setup Installer compiled in {dur2}s: dist/AI-Quiz-Assistant-Setup.exe")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"  ❌ Installer compilation failed with exit code {e.returncode}")
+    app_exe = os.path.join(app_dist, "QuizAssistant.exe")
+    if not has_required_app_executable(app_exe):
+        print(f"  ❌ App executable required for embedding was not built: {app_exe}")
         return False
+
+    installer_dist = os.path.join(PROJECT_ROOT, "build", "installer-dist")
+    installer_work = os.path.join(PROJECT_ROOT, "build", "installer")
+    installer_spec = os.path.join(PROJECT_ROOT, "Installer.spec")
+    print("\n⚙️ [3/5] Building setup executable...")
+    try:
+        subprocess.run([
+            sys.executable, "-m", "PyInstaller", "--noconfirm",
+            "--distpath", installer_dist, "--workpath", installer_work, installer_spec
+        ], cwd=PROJECT_ROOT, check=True)
+        return True
     except Exception as ex:
-        print(f"  ❌ Installer PyInstaller execution error: {ex}")
+        print(f"  ❌ Installer compilation failed: {ex}")
+        return False
+
+
+def finalize_distribution(dist_dir: str, staged_installer: str) -> bool:
+    """Leave only the setup executable, named QuizAssistant.exe, in dist."""
+    if not os.path.isfile(staged_installer):
+        print(f"  ❌ Installer executable not found at {staged_installer}")
+        return False
+
+    final_installer = os.path.join(dist_dir, "QuizAssistant.exe")
+    os.makedirs(dist_dir, exist_ok=True)
+    temporary_installer = os.path.join(dist_dir, ".QuizAssistant.exe.tmp")
+    try:
+        shutil.copy2(staged_installer, temporary_installer)
+        os.replace(temporary_installer, final_installer)
+        for name in os.listdir(dist_dir):
+            path = os.path.join(dist_dir, name)
+            if os.path.abspath(path) == os.path.abspath(final_installer):
+                continue
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+            else:
+                os.remove(path)
+        return True
+    except OSError as e:
+        if os.path.exists(temporary_installer):
+            os.remove(temporary_installer)
+        print(f"  ❌ Could not finalize installer distribution: {e}")
         return False
 
 
 def assemble_distribution() -> bool:
-    """Assemble final distribution package and zip archive."""
-    print("\n📦 [4/5] Assembling production distribution package...")
-    
-    exe_source = os.path.join(PROJECT_ROOT, "dist", "QuizAssistant.exe")
-    installer_source = os.path.join(PROJECT_ROOT, "dist", "AI-Quiz-Assistant-Setup.exe")
-    if not os.path.exists(exe_source):
-        print(f"  ❌ Output executable not found at {exe_source}")
+    """Finalize the single-file installer distribution."""
+    print("\n📦 [4/5] Assembling single-installer distribution...")
+    dist_dir = os.path.join(PROJECT_ROOT, "dist")
+    staged_installer = os.path.join(PROJECT_ROOT, "build", "installer-dist", "QuizAssistant-Installer.exe")
+    if not finalize_distribution(dist_dir, staged_installer):
         return False
-
-    exe_size_mb = round(os.path.getsize(exe_source) / (1024 * 1024), 2)
-    print(f"  ✅ Verified executable: QuizAssistant.exe ({exe_size_mb} MB)")
-
-    if os.path.exists(installer_source):
-        inst_size_mb = round(os.path.getsize(installer_source) / (1024 * 1024), 2)
-        print(f"  ✅ Verified installer: AI-Quiz-Assistant-Setup.exe ({inst_size_mb} MB)")
-
-    # Create portable release directory
-    release_dir_name = f"AI-Quiz-Assistant-v{APP_VERSION}"
-    release_dir = os.path.join(PROJECT_ROOT, "dist", release_dir_name)
-    os.makedirs(release_dir, exist_ok=True)
-
-    # 1. Copy executable
-    shutil.copy2(exe_source, os.path.join(release_dir, "QuizAssistant.exe"))
-    if os.path.exists(installer_source):
-        shutil.copy2(installer_source, os.path.join(release_dir, "AI-Quiz-Assistant-Setup.exe"))
-
-    # 2. Copy template .env.example
-    env_ex = os.path.join(PROJECT_ROOT, ".env.example")
-    if os.path.exists(env_ex):
-        shutil.copy2(env_ex, os.path.join(release_dir, ".env.example"))
-
-    # 3. Create README_DIST.txt
-    dist_readme_path = os.path.join(release_dir, "README.txt")
-    with open(dist_readme_path, "w", encoding="utf-8") as f:
-        f.write(f"""================================================================================
-{APP_DISPLAY_NAME} - Official Release Package
-================================================================================
-
-🚀 INSTALLATION OPTIONS:
-Option 1: Run `AI-Quiz-Assistant-Setup.exe` (Recommended)
-   - Guided setup wizard allows selecting install directory (nơi lưu).
-   - Automatically registers Desktop and Start Menu shortcuts with official icon.
-   - Registers in Windows Apps & Features (with standard uninstaller).
-   - Upon finish, automatically opens the 3-step setup wizard!
-
-Option 2: Portable Mode
-   - Run `QuizAssistant.exe` directly from any folder without installation.
-   - On first launch, the 3-step setup wizard will guide you to configure AI & HUD.
-
-⌨️ DEFAULT SHORTCUTS:
-  Alt + Z : Silent screen capture & background AI solve
-  Alt + X : Auto-fill / click correct answer choices
-  Alt + C : Show floating HUD card with latest question result
-  Alt + H : View full question history (1..N)
-  Alt + S : Open Settings dialog (adjust keys, theme, API credentials)
-  Alt + R : Reset session history for a new test
-
-🌐 OFFICIAL LINKS:
-  Repository:     {GITHUB_REPO_URL}
-  Releases:       {GITHUB_RELEASES_URL}
-  Documentation:  {DOCUMENTATION_URL}
-
-License: MIT License
-================================================================================
-""")
-
-    print(f"  ✅ Portable package created at dist/{release_dir_name}/")
-
-    # 4. Create ZIP Archive
-    zip_dest = os.path.join(PROJECT_ROOT, "dist", f"{release_dir_name}-Windows")
-    shutil.make_archive(zip_dest, "zip", root_dir=os.path.join(PROJECT_ROOT, "dist"), base_dir=release_dir_name)
-    zip_file = f"{zip_dest}.zip"
-    zip_size_mb = round(os.path.getsize(zip_file) / (1024 * 1024), 2)
-    print(f"  ✅ Created ZIP archive: {os.path.basename(zip_file)} ({zip_size_mb} MB)")
-
-    # 5. Calculate Checksums
-    exe_hash = calculate_sha256(exe_source)
-    zip_hash = calculate_sha256(zip_file)
-    inst_hash = calculate_sha256(installer_source) if os.path.exists(installer_source) else ""
-
-    checksum_file = os.path.join(PROJECT_ROOT, "dist", "SHA256SUMS.txt")
-    with open(checksum_file, "w", encoding="utf-8") as f:
-        f.write(f"{exe_hash} *QuizAssistant.exe\n")
-        if inst_hash:
-            f.write(f"{inst_hash} *AI-Quiz-Assistant-Setup.exe\n")
-        f.write(f"{zip_hash} *{os.path.basename(zip_file)}\n")
-
-    print("\n🔐 [5/5] Release Integrity Hashes (SHA-256):")
-    print(f"  QuizAssistant.exe:            {exe_hash}")
-    if inst_hash:
-        print(f"  AI-Quiz-Assistant-Setup.exe:  {inst_hash}")
-    print(f"  {os.path.basename(zip_file)}: {zip_hash}")
-    print(f"  Checksums saved to: dist/SHA256SUMS.txt")
-
-    return True
-    print(f"  Checksums saved to: dist/SHA256SUMS.txt")
-
+    print(f"  ✅ Final installer: {os.path.join(dist_dir, 'QuizAssistant.exe')}")
     return True
 
 
@@ -265,11 +190,7 @@ def main():
     print(f"🎉 BUILD SUCCESSFUL! {APP_DISPLAY_NAME} is ready for production.")
     print("=" * 70)
     print("Outputs available in 'dist/' directory:")
-    print("  📁 dist/QuizAssistant.exe (Standalone executable)")
-    print("  📁 dist/AI-Quiz-Assistant-Setup.exe (Windows Setup Installer)")
-    print(f"  📁 dist/AI-Quiz-Assistant-v{APP_VERSION}/ (Portable folder)")
-    print(f"  📦 dist/AI-Quiz-Assistant-v{APP_VERSION}-Windows.zip (Distribution package)")
-    print("  📄 dist/SHA256SUMS.txt (Verification checksums)")
+    print("  📁 dist/QuizAssistant.exe (Windows installer; app executable is embedded)")
 
 
 if __name__ == "__main__":

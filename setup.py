@@ -276,7 +276,7 @@ def register_shortcuts():
     except ImportError:
         from src.shortcut_manager import create_desktop_and_start_menu_shortcuts, register_windows_app
 
-    target_exe = os.path.join(PROJECT_ROOT, "dist", "QuizAssistant.exe")
+    target_exe = os.path.join(PROJECT_ROOT, "build", "app-dist", "QuizAssistant.exe")
     if not os.path.exists(target_exe):
         target_exe = os.path.join(PROJECT_ROOT, "run.pyw")
     ico_path = os.path.join(PROJECT_ROOT, "assets", "icon.ico")

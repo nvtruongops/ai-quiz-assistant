@@ -5,14 +5,14 @@ import sys
 project_root = os.path.abspath(SPECPATH) if 'SPECPATH' in locals() else os.path.abspath(os.getcwd())
 
 datas = [
-    ('assets', 'assets'),
-    ('.env.example', '.'),
+    ('assets/icon.ico', 'assets'),
 ]
 
-# If QuizAssistant.exe exists in dist, bundle it inside the installer
-quiz_exe = os.path.join(project_root, 'dist', 'QuizAssistant.exe')
-if os.path.exists(quiz_exe):
-    datas.append(('dist/QuizAssistant.exe', '.'))
+# Embed the app executable from its separate build staging directory.
+quiz_exe = os.path.join(project_root, 'build', 'app-dist', 'QuizAssistant.exe')
+if not os.path.isfile(quiz_exe):
+    raise FileNotFoundError(f'Required app executable is missing: {quiz_exe}')
+datas.append((quiz_exe, '.'))
 
 a = Analysis(
     ['installer.py'],
@@ -45,7 +45,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='AI-Quiz-Assistant-Setup',
+    name='QuizAssistant-Installer',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

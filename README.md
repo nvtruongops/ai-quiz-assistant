@@ -86,7 +86,7 @@ A high-performance Windows desktop assistant that silently captures exam questio
 ## 🚀 Installation & Quick Start
 
 ### 📦 Option 1: Official Windows Installer (Recommended)
-Download and run **`AI-Quiz-Assistant-Setup.exe`**:
+Download and run **`QuizAssistant.exe`** (the installer; the app executable is installed afterward):
 1. **Choose Destination Folder**: Select your preferred installation directory (`%LOCALAPPDATA%\Programs\AI Quiz Assistant` or custom).
 2. **Register Official Icon**: Automatically creates Desktop and Start Menu shortcuts with the official high-resolution icon (16x16 to 256x256), and registers in Windows Apps & Features.
 3. **Launch & 3-Step Setup**: Automatically launches the app upon finish, opening the 3-step setup onboarding wizard.
@@ -214,18 +214,17 @@ python build_exe.py
 
 The automated pipeline will:
 1. Verify required prerequisites and PyInstaller installation.
-2. Clean old compilation artifacts.
-3. Compile `run.pyw` into `dist/QuizAssistant.exe` with bundled icons and Version 2.0 metadata.
-4. Assemble a portable release package under `dist/AI-Quiz-Assistant-v2.0/`.
-5. Generate a ready-to-distribute ZIP archive `dist/AI-Quiz-Assistant-v2.0-Windows.zip`.
-6. Output SHA-256 integrity checksums to `dist/SHA256SUMS.txt`.
+2. Clean intermediate compilation artifacts.
+3. Compile the app executable into a temporary build folder.
+4. Embed the app executable in the graphical installer.
+5. Leave only `dist/QuizAssistant.exe` (the installer) for distribution.
 
 ### Option 2: Manual PyInstaller Build
 ```bash
 pip install pyinstaller
 pyinstaller --clean --noconfirm QuizAssistant.spec
 ```
-The compiled binary will be generated at `dist/QuizAssistant.exe`.
+The app executable is only an intermediate build artifact; use `build.bat` to create the distributable installer at `dist/QuizAssistant.exe`.
 
 ---
 

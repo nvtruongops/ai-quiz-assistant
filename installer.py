@@ -56,6 +56,31 @@ def get_bundle_dir() -> str:
     return PROJECT_ROOT
 
 
+def find_application_executable(bundle_dir: str, project_root: str, frozen: bool = False) -> str:
+    """Locate the embedded app binary without mistaking the installer for the app."""
+    candidates = [
+        os.path.join(bundle_dir, "QuizAssistant.exe"),
+        os.path.join(project_root, "build", "app-dist", "QuizAssistant.exe"),
+        os.path.join(project_root, "QuizAssistant.exe"),
+    ]
+    for candidate in candidates:
+        if os.path.isfile(candidate):
+            if frozen and os.path.abspath(candidate) == os.path.abspath(sys.executable):
+                continue
+            return candidate
+    return ""
+
+
+def copy_application_executable(source_exe: str, install_dir: str) -> str:
+    """Install the application executable into the selected directory."""
+    if not os.path.isfile(source_exe):
+        raise FileNotFoundError(source_exe)
+    os.makedirs(install_dir, exist_ok=True)
+    dest_exe = os.path.join(install_dir, "QuizAssistant.exe")
+    shutil.copy2(source_exe, dest_exe)
+    return dest_exe
+
+
 def get_available_disk_space_gb(path: str) -> float:
     """Calculate free disk space in GB for the drive containing path."""
     try:
@@ -551,67 +576,33 @@ class SetupInstallerApp:
 
         # 1. Locate source executable and files
         self.set_progress(25, "Locating application binaries and assets...")
-        candidates_exe = [
-            os.path.join(self.bundle_dir, "QuizAssistant.exe"),
-            os.path.join(PROJECT_ROOT, "dist", "QuizAssistant.exe"),
-            os.path.join(PROJECT_ROOT, "QuizAssistant.exe")
-        ]
-        source_exe = ""
-        for c in candidates_exe:
-            if os.path.exists(c):
-                source_exe = c
-                break
+        source_exe = find_application_executable(
+            self.bundle_dir, PROJECT_ROOT, frozen=getattr(sys, "frozen", False)
+        )
 
         dest_exe = os.path.join(dest_dir, "QuizAssistant.exe")
         self.installed_exe_path = dest_exe
 
-        if source_exe and os.path.exists(source_exe):
+        if source_exe:
             self.set_progress(40, "Copying QuizAssistant.exe to destination...")
             self.append_log(f"[*] Copying {os.path.basename(source_exe)} -> {dest_exe}")
             try:
-                shutil.copy2(source_exe, dest_exe)
+                self.installed_exe_path = copy_application_executable(source_exe, dest_dir)
                 self.append_log("  -> Copied QuizAssistant.exe successfully")
             except Exception as e:
                 self.append_log(f"  [ERROR] Failed to copy exe: {e}")
+                self.root.after(0, lambda: messagebox.showerror(
+                    "Install Error", f"Could not install the application executable: {e}", parent=self.root
+                ))
+                return
         else:
-            # If running in source/dev mode without compiled exe, create a launcher runner
-            self.append_log("[!] Standalone QuizAssistant.exe not found. Installing source launcher...")
-            runner_bat = os.path.join(dest_dir, "QuizAssistant.bat")
-            self.installed_exe_path = runner_bat
-            with open(runner_bat, "w", encoding="utf-8") as f:
-                f.write(f'@echo off\ncd /d "{PROJECT_ROOT}"\nstart pythonw run.pyw\n')
-            self.append_log(f"  -> Created launcher at {runner_bat}")
+            self.append_log("[ERROR] Application executable is missing from installer payload.")
+            self.root.after(0, lambda: messagebox.showerror(
+                "Install Error", "The application executable could not be found in the installer.", parent=self.root
+            ))
+            return
 
-        # 2. Copy Assets (icon.ico, icon.png)
-        self.set_progress(55, "Deploying application icons and documentation...")
-        dest_assets = os.path.join(dest_dir, "assets")
-        os.makedirs(dest_assets, exist_ok=True)
-
-        for icon_file in ["icon.ico", "icon.png"]:
-            src_i = os.path.join(self.bundle_dir, "assets", icon_file)
-            if not os.path.exists(src_i):
-                src_i = os.path.join(PROJECT_ROOT, "assets", icon_file)
-            if os.path.exists(src_i):
-                dest_i = os.path.join(dest_assets, icon_file)
-                try:
-                    shutil.copy2(src_i, dest_i)
-                    self.append_log(f"  -> Deployed {icon_file}")
-                except Exception as e:
-                    self.append_log(f"  [!] Failed to copy {icon_file}: {e}")
-
-        # Copy .env.example & README.txt
-        for doc_file in [".env.example", "README.md", "README.txt"]:
-            src_d = os.path.join(self.bundle_dir, doc_file)
-            if not os.path.exists(src_d):
-                src_d = os.path.join(PROJECT_ROOT, doc_file)
-            if os.path.exists(src_d):
-                dest_d = os.path.join(dest_dir, doc_file)
-                try:
-                    shutil.copy2(src_d, dest_d)
-                except Exception:
-                    pass
-
-        # 3. Generate clean uninstaller
+        # 2. Generate clean uninstaller
         self.set_progress(70, "Generating uninstallation utility...")
         try:
             uninst_path = generate_uninstaller_script(dest_dir)
@@ -621,9 +612,7 @@ class SetupInstallerApp:
 
         # 4. Create Shortcuts with official icon
         self.set_progress(80, "Creating Windows shortcuts & registering icon...")
-        dest_icon = os.path.join(dest_assets, "icon.ico")
-        if not os.path.exists(dest_icon):
-            dest_icon = self.icon_path
+        dest_icon = dest_exe if os.path.exists(dest_exe) else self.icon_path
 
         sc_summary = []
         if self.create_desktop_var.get():

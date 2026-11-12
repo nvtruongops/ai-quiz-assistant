@@ -42,13 +42,15 @@ class TestProdBuildAndUrls(unittest.TestCase):
         fake_exe = r"C:\Program Files\QuizAssistant\QuizAssistant.exe"
         fake_temp = r"C:\Users\User\AppData\Local\Temp\_MEI123456"
 
+        expected_app_dir = r"C:\Users\User\AppData\Roaming\AI Quiz Assistant"
         with patch.object(sys, 'frozen', True, create=True), \
              patch.object(sys, 'executable', fake_exe), \
-             patch.object(sys, '_MEIPASS', fake_temp, create=True):
-            
+             patch.object(sys, '_MEIPASS', fake_temp, create=True), \
+             patch.dict(os.environ, {"APPDATA": r"C:\Users\User\AppData\Roaming"}):
+
             self.assertTrue(path_utils.is_frozen())
-            self.assertEqual(path_utils.get_app_dir(), r"C:\Program Files\QuizAssistant")
-            
+            self.assertEqual(path_utils.get_app_dir(), expected_app_dir)
+
             res_path = path_utils.get_resource_path("assets/icon.png")
             expected_res = os.path.normpath(os.path.join(fake_temp, "assets/icon.png"))
             self.assertEqual(res_path, expected_res)
